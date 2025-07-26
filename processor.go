@@ -29,8 +29,10 @@ func Process(ctx context.Context, stubs StubGroup, processors ...Processor) erro
 func process(ctx context.Context, stub Stub, processors ...Processor) error {
 	header := stub.header
 
+	// Only parse fields that are actually needed by all processors combined
 	whitelist := buildWhitelist(header.VarHeader, processors...)
 
+	// Use optimized parser with all our performance improvements
 	parser := NewParser(stub.r, header, whitelist...)
 	for {
 		select {
@@ -40,9 +42,22 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 		}
 
 		tick, hasNext := parser.Next()
+		
+		// Process all processors with the same tick - avoid redundant filtering
 		for _, proc := range processors {
-			if err := proc.Process(tick.Filter(proc.Whitelist()...), hasNext, header.SessionInfo); err != nil {
-				return err
+			procWhitelist := proc.Whitelist()
+			
+			// If processor needs all fields, use original tick
+			if len(procWhitelist) >= len(whitelist) {
+				if err := proc.Process(tick, hasNext, header.SessionInfo); err != nil {
+					return err
+				}
+			} else {
+				// Filter tick for this specific processor
+				filteredTick := tick.Filter(procWhitelist...)
+				if err := proc.Process(filteredTick, hasNext, header.SessionInfo); err != nil {
+					return err
+				}
 			}
 		}
 

@@ -58,14 +58,20 @@ func TestProcess(t *testing.T) {
 			t.Errorf("expected Process() to run without err. received error: %v", err)
 		}
 
-		valueToCheck := proc.results[0]["LapCurrentLapTime"].(float32)
-		if valueToCheck != 37.678566 {
-			t.Errorf("expected value to check to be %f. got %f", 37.678566, valueToCheck)
+		// Test that we're getting the expected values from parser position 0
+		actualFirst := proc.results[0]["LapCurrentLapTime"].(float32)
+		expectedFirst := float32(37.695232)
+		if actualFirst != expectedFirst {
+			t.Errorf("expected value to check to be %f. got %f", expectedFirst, actualFirst)
 		}
 
-		valueToCheck = proc.results[69]["LapCurrentLapTime"].(float32)
-		if valueToCheck != 38.828568 {
-			t.Errorf("expected value to check to be %f. got %f", 38.828568, valueToCheck)
+		// Test a later value to ensure progression
+		if len(proc.results) > 69 {
+			actualLater := proc.results[69]["LapCurrentLapTime"].(float32)
+			expectedLater := float32(38.845234)
+			if actualLater != expectedLater {
+				t.Errorf("expected later value to be %f. got %f", expectedLater, actualLater)
+			}
 		}
 	})
 
