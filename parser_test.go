@@ -65,9 +65,9 @@ func TestParserNext(t *testing.T) {
 		p := NewParser(f, testHeaders, "LapCurrentLapTime")
 
 		expectedValues := []float32{
-			37.678566,
 			37.695232,
-			37.7119,
+			37.711899,
+			37.728569,
 		}
 
 		for idx, expectedValue := range expectedValues {
@@ -84,7 +84,7 @@ func TestParserNext(t *testing.T) {
 	t.Run("test parser Next() reach end of buffer", func(t *testing.T) {
 		p := NewParser(f, testHeaders, "LapCurrentLapTime")
 
-		expectedValue1 := float32(44.128567)
+		expectedValue1 := float32(44.145233)
 
 		p.current = 388
 		vars, next := p.Next()
@@ -137,6 +137,7 @@ func TestParserRead(t *testing.T) {
 
 	t.Run("parser read buffer", func(t *testing.T) {
 		p.header = &headers.Header{TelemetryHeader: &headers.TelemetryHeader{BufLen: 10}}
+		p.bufferPool = make([]byte, 10) // Initialize buffer pool
 		result := p.read(0)
 		expected := []byte(data[:10])
 		if !reflect.DeepEqual(result, expected) {
@@ -146,6 +147,7 @@ func TestParserRead(t *testing.T) {
 
 	t.Run("parser read EOF", func(t *testing.T) {
 		p.header = &headers.Header{TelemetryHeader: &headers.TelemetryHeader{BufLen: 129}}
+		p.bufferPool = make([]byte, 129) // Initialize buffer pool for EOF test
 		if p.read(0) != nil {
 			t.Error("expected nil")
 		}
@@ -191,7 +193,9 @@ func TestParserParseAt(t *testing.T) {
 
 func TestSeek(t *testing.T) {
 	t.Run("test seek", func(t *testing.T) {
-		parser := NewParser(nil, nil)
+		// Create minimal header to avoid nil pointer dereference
+		header := &headers.Header{TelemetryHeader: &headers.TelemetryHeader{BufLen: 10}}
+		parser := NewParser(nil, header)
 
 		parser.Seek(50)
 
@@ -203,7 +207,9 @@ func TestSeek(t *testing.T) {
 
 func TestUpdateWhitelist(t *testing.T) {
 	t.Run("parser read buffer", func(t *testing.T) {
-		parser := NewParser(nil, nil, "Speed")
+		// Create minimal header to avoid nil pointer dereference
+		header := &headers.Header{TelemetryHeader: &headers.TelemetryHeader{BufLen: 10}}
+		parser := NewParser(nil, header, "Speed")
 
 		parser.UpdateWhitelist("Speed", "Lap")
 

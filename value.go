@@ -1,8 +1,19 @@
 package ibt
 
 import (
+	"sync"
 	"github.com/teamjorge/ibt/headers"
 	"github.com/teamjorge/ibt/utilities"
+)
+
+// Slice pools to reduce allocations for array variables
+var (
+	uint8Pool = sync.Pool{New: func() interface{} { return make([]uint8, 0, 32) }}
+	boolPool = sync.Pool{New: func() interface{} { return make([]bool, 0, 32) }}
+	intPool = sync.Pool{New: func() interface{} { return make([]int, 0, 32) }}
+	stringPool = sync.Pool{New: func() interface{} { return make([]string, 0, 32) }}
+	float32Pool = sync.Pool{New: func() interface{} { return make([]float32, 0, 32) }}
+	float64Pool = sync.Pool{New: func() interface{} { return make([]float64, 0, 32) }}
 )
 
 // readVarValue extracts the telemetry variable value from the given buffer based on the provided metadata.
@@ -18,46 +29,70 @@ func readVarValue(buf []byte, vh headers.VarHeader) interface{} {
 		switch vh.Rtype {
 		case 0:
 			rbuf = buf[offset:vh.Count]
-			res := make([]uint8, 0)
+			res := uint8Pool.Get().([]uint8)[:0] // Reuse slice from pool
 			for _, x := range rbuf[offset : offset+vh.Count] {
 				res = append(res, uint8(x))
 			}
-			value = res
+			// Make a copy to return, put slice back in pool for reuse
+			result := make([]uint8, len(res))
+			copy(result, res)
+			uint8Pool.Put(res)
+			value = result
 		case 1:
 			rbuf = buf[offset : offset+vh.Count]
-			res := make([]bool, 0)
+			res := boolPool.Get().([]bool)[:0] // Reuse slice from pool
 			for _, x := range rbuf {
 				res = append(res, x > 0)
 			}
-			value = res
+			// Make a copy to return, put slice back in pool for reuse
+			result := make([]bool, len(res))
+			copy(result, res)
+			boolPool.Put(res)
+			value = result
 		case 2:
 			rbuf = buf[offset : offset+vh.Count*4]
-			res := make([]int, 0)
+			res := intPool.Get().([]int)[:0] // Reuse slice from pool
 			for i := 0; i < len(rbuf); i += 4 {
 				res = append(res, utilities.Byte4ToInt(rbuf[i:i+4]))
 			}
-			value = res
+			// Make a copy to return, put slice back in pool for reuse
+			result := make([]int, len(res))
+			copy(result, res)
+			intPool.Put(res)
+			value = result
 		case 3:
 			rbuf = buf[offset : offset+vh.Count*4]
-			res := make([]string, 0)
+			res := stringPool.Get().([]string)[:0] // Reuse slice from pool
 			for i := 0; i < len(rbuf); i += 4 {
 				res = append(res, utilities.Byte4toBitField(rbuf[i:i+4]))
 			}
-			value = res
+			// Make a copy to return, put slice back in pool for reuse
+			result := make([]string, len(res))
+			copy(result, res)
+			stringPool.Put(res)
+			value = result
 		case 4:
 			rbuf = buf[offset : offset+vh.Count*4]
-			res := make([]float32, 0)
+			res := float32Pool.Get().([]float32)[:0] // Reuse slice from pool
 			for i := 0; i < len(rbuf); i += 4 {
 				res = append(res, utilities.Byte4ToFloat(rbuf[i:i+4]))
 			}
-			value = res
+			// Make a copy to return, put slice back in pool for reuse
+			result := make([]float32, len(res))
+			copy(result, res)
+			float32Pool.Put(res)
+			value = result
 		case 5:
 			rbuf = buf[offset : offset+vh.Count*8]
-			res := make([]float64, 0)
+			res := float64Pool.Get().([]float64)[:0] // Reuse slice from pool
 			for i := 0; i < len(rbuf); i += 8 {
 				res = append(res, utilities.Byte8ToFloat(rbuf[i:i+8]))
 			}
-			value = res
+			// Make a copy to return, put slice back in pool for reuse
+			result := make([]float64, len(res))
+			copy(result, res)
+			float64Pool.Put(res)
+			value = result
 		}
 	} else {
 		switch vh.Rtype {

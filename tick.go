@@ -15,10 +15,14 @@ type TickValueType interface {
 
 // Filter the tick for only the given whitelisted fields
 func (t Tick) Filter(whitelist ...string) Tick {
-	partialTick := make(Tick)
+	// For now, use simple allocation until we can properly implement pooling
+	// The pool approach was causing shared state issues in tests
+	partialTick := make(Tick, len(whitelist))
 
 	for _, field := range whitelist {
-		partialTick[field] = t[field]
+		if val, exists := t[field]; exists {
+			partialTick[field] = val
+		}
 	}
 
 	return partialTick
