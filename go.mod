@@ -1,4 +1,6 @@
-module github.com/teamjorge/ibt
+module github.com/OJPARKINSON/ibt
+
+// This repo is forked from https://github.com/teamjorge/ibt and owned by teamjorge I'm just researching some optimisations
 
 go 1.22
 
