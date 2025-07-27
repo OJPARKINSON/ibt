@@ -1,3 +1,8 @@
+## Disclaimer
+
+Forked from https://github.com/teamjorge/ibt with optimisations for my use case
+https://github.com/teamjorge/ibt/blob/main/LICENCE
+
 # ibt
 
     iRacing Telemetry parsing and processing library
