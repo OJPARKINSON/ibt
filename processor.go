@@ -42,11 +42,11 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 		}
 
 		tick, hasNext := parser.Next()
-		
+
 		// Process all processors with the same tick - avoid redundant filtering
 		for _, proc := range processors {
 			procWhitelist := proc.Whitelist()
-			
+
 			// If processor needs all fields, use original tick
 			if len(procWhitelist) >= len(whitelist) {
 				if err := proc.Process(tick, hasNext, header.SessionInfo); err != nil {
