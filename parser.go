@@ -7,7 +7,7 @@ import (
 // Parser is used to iterate and process telemetry variables for a given ibt file and it's headers.
 type Parser struct {
 	// File or Live Telemetry reader
-	reader headers.Reader
+	reader *MmapReader
 	// List of columns to parse
 	whitelist []string
 	header    *headers.Header
@@ -18,7 +18,7 @@ type Parser struct {
 	bufferPool []byte
 	// Pre-allocated tick map to eliminate per-tick map allocations
 	tickPool Tick
-	
+
 	// Fast path optimization: pre-computed variable headers for whitelist
 	varHeaders []headers.VarHeader
 	varNames   []string
@@ -32,7 +32,7 @@ type Parser struct {
 //
 // whitelist - Variables to process. For example, "gear", "speed", "rpm" etc. If no values or a
 // single value of "*" is received, all variables will be processed.
-func NewParser(reader headers.Reader, header *headers.Header, whitelist ...string) *Parser {
+func NewParser(reader *MmapReader, header *headers.Header, whitelist ...string) *Parser {
 	p := new(Parser)
 
 	p.reader = reader
@@ -55,7 +55,7 @@ func NewParser(reader headers.Reader, header *headers.Header, whitelist ...strin
 	// Pre-compute variable headers and names for fast parsing
 	p.varHeaders = make([]headers.VarHeader, 0, len(p.whitelist))
 	p.varNames = make([]string, 0, len(p.whitelist))
-	
+
 	for _, variable := range p.whitelist {
 		if varHeader, exists := header.VarHeader[variable]; exists {
 			p.varHeaders = append(p.varHeaders, varHeader)
@@ -136,12 +136,12 @@ func (p *Parser) readVarsFromBuffer(buf []byte) Tick {
 		p.tickPool[varName] = val
 	}
 
-	// Use pre-allocated result map and copy efficiently  
+	// Use pre-allocated result map and copy efficiently
 	result := make(Tick, len(p.varNames))
 	for k, v := range p.tickPool {
 		result[k] = v
 	}
-	
+
 	return result
 }
 

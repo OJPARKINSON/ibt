@@ -2,26 +2,27 @@ package ibt
 
 import (
 	"sync"
+
 	"github.com/teamjorge/ibt/headers"
 )
 
 // ZeroCopyParser is an ultra-fast parser that minimizes allocations
 type ZeroCopyParser struct {
 	*Parser
-	
+
 	// Reusable result tick to avoid allocations
 	resultTick Tick
-	
+
 	// Pool for result ticks
 	tickResultPool *sync.Pool
 }
 
 // NewZeroCopyParser creates a parser optimized for minimal allocations
-func NewZeroCopyParser(reader headers.Reader, header *headers.Header, whitelist ...string) *ZeroCopyParser {
+func NewZeroCopyParser(reader *MmapReader, header *headers.Header, whitelist ...string) *ZeroCopyParser {
 	baseParser := NewParser(reader, header, whitelist...)
-	
+
 	return &ZeroCopyParser{
-		Parser: baseParser,
+		Parser:     baseParser,
 		resultTick: make(Tick, len(whitelist)),
 		tickResultPool: &sync.Pool{
 			New: func() interface{} {
@@ -72,17 +73,17 @@ func (p *ZeroCopyParser) readVarsFromBufferZeroCopy(buf []byte) {
 // GetTickCopy returns a copy of the current tick that is safe to retain
 func (p *ZeroCopyParser) GetTickCopy(tick Tick) Tick {
 	result := p.tickResultPool.Get().(Tick)
-	
+
 	// Clear the pooled tick
 	for k := range result {
 		delete(result, k)
 	}
-	
+
 	// Copy values
 	for k, v := range tick {
 		result[k] = v
 	}
-	
+
 	return result
 }
 

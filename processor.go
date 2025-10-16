@@ -3,6 +3,7 @@ package ibt
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/teamjorge/ibt/headers"
@@ -18,6 +19,11 @@ func Process(ctx context.Context, stubs StubGroup, processors ...Processor) erro
 	sort.Sort(stubs)
 
 	for _, stub := range stubs {
+		// Open the stub's reader before processing
+		if err := stub.Open(); err != nil {
+			return fmt.Errorf("failed to open stub: %w", err)
+		}
+
 		if err := process(ctx, stub, processors...); err != nil {
 			return err
 		}
@@ -33,7 +39,7 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 	whitelist := buildWhitelist(header.VarHeader, processors...)
 
 	// Use optimized parser with all our performance improvements
-	parser := NewParser(stub.r, header, whitelist...)
+	parser := NewZeroCopyParser(stub.r, header, whitelist...)
 	for {
 		select {
 		case <-ctx.Done():
@@ -41,7 +47,7 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 		default:
 		}
 
-		tick, hasNext := parser.Next()
+		tick, hasNext := parser.NextZeroCopy()
 
 		// Process all processors with the same tick - avoid redundant filtering
 		for _, proc := range processors {

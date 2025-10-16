@@ -17,12 +17,12 @@ import (
 type Stub struct {
 	filepath string
 	header   *headers.Header
-	r        headers.Reader
+	r        *MmapReader
 }
 
 // Open the underlying ibt file for reading
 func (stub *Stub) Open() (err error) {
-	stub.r, err = os.Open(stub.Filename())
+	stub.r, err = NewMmapReader(stub.Filename())
 	if err != nil {
 		return fmt.Errorf("failed to open stub file %s for reading: %v", stub.Filename(), err)
 	}
@@ -31,7 +31,12 @@ func (stub *Stub) Open() (err error) {
 }
 
 // Close the stub reader
-func (stub *Stub) Close() error { return stub.r.Close() }
+func (stub *Stub) Close() error {
+	if stub.r != nil {
+		return stub.r.Close()
+	}
+	return nil
+}
 
 // Filename where the stub originated from
 func (stub *Stub) Filename() string { return stub.filepath }
@@ -97,17 +102,20 @@ func ParseStubs(files ...string) (StubGroup, error) {
 func parseStub(filename string) (Stub, error) {
 	var stub Stub
 
+	// Open with os.File for header parsing (requires Read() method)
 	f, err := os.Open(filename)
 	if err != nil {
 		return stub, fmt.Errorf("failed to open file %s for reading: %v", filename, err)
 	}
+	defer f.Close()
 
 	header, err := headers.ParseHeaders(f)
 	if err != nil {
 		return stub, fmt.Errorf("failed to parse headers for file %s - %v", filename, err)
 	}
 
-	return Stub{filename, header, f}, nil
+	// Return stub with nil reader - Open() will create MmapReader later for telemetry reading
+	return Stub{filename, header, nil}, nil
 }
 
 // Group stubs together by their iRacing session.
