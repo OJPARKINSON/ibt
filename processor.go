@@ -13,6 +13,14 @@ import (
 type Processor interface {
 	Process(input Tick, hasNext bool, session *headers.Session) error
 	Whitelist() []string
+	FlushPendingData() error
+	Close() error
+	GetMetrics() interface{} // Returns ProcessorMetrics from internal/processing
+}
+
+type StructProcessor interface {
+	Processor
+	ProcessStruct(tick *TelemetryTick, hasNext bool, session *headers.Session) error
 }
 
 func Process(ctx context.Context, stubs StubGroup, processors ...Processor) error {
@@ -38,37 +46,76 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 	// Only parse fields that are actually needed by all processors combined
 	whitelist := buildWhitelist(header.VarHeader, processors...)
 
-	// Use optimized parser with all our performance improvements
-	parser := NewZeroCopyParser(stub.r, header, whitelist...)
-	for {
-		select {
-		case <-ctx.Done():
-			return errors.New("context cancelled")
-		default:
+	useStructs := false
+	for _, processor := range processors {
+		if _, ok := processor.(StructProcessor); ok {
+			useStructs = true
+			break
 		}
+	}
 
-		tick, hasNext := parser.NextZeroCopy()
+	if useStructs {
+		whitelist := processors[0].Whitelist()
+		parser := NewStructParser(stub.r, header, whitelist...)
 
-		// Process all processors with the same tick - avoid redundant filtering
-		for _, proc := range processors {
-			procWhitelist := proc.Whitelist()
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
 
-			// If processor needs all fields, use original tick
-			if len(procWhitelist) >= len(whitelist) {
-				if err := proc.Process(tick, hasNext, header.SessionInfo); err != nil {
-					return err
-				}
-			} else {
-				// Filter tick for this specific processor
-				filteredTick := tick.Filter(procWhitelist...)
-				if err := proc.Process(filteredTick, hasNext, header.SessionInfo); err != nil {
-					return err
+			tick, hasNext := parser.NextStruct()
+			if tick == nil {
+				break
+			}
+
+			for _, processor := range processors {
+				if sp, ok := processor.(StructProcessor); ok {
+					if err := sp.ProcessStruct(tick, hasNext, header.SessionInfo); err != nil {
+						return err
+					}
 				}
 			}
-		}
 
-		if !hasNext {
-			break
+			if !hasNext {
+				break
+			}
+		}
+	} else {
+
+		// Use optimized parser with all our performance improvements
+		parser := NewZeroCopyParser(stub.r, header, whitelist...)
+		for {
+			select {
+			case <-ctx.Done():
+				return errors.New("context cancelled")
+			default:
+			}
+
+			tick, hasNext := parser.NextZeroCopy()
+
+			// Process all processors with the same tick - avoid redundant filtering
+			for _, proc := range processors {
+				procWhitelist := proc.Whitelist()
+
+				// If processor needs all fields, use original tick
+				if len(procWhitelist) >= len(whitelist) {
+					if err := proc.Process(tick, hasNext, header.SessionInfo); err != nil {
+						return err
+					}
+				} else {
+					// Filter tick for this specific processor
+					filteredTick := tick.Filter(procWhitelist...)
+					if err := proc.Process(filteredTick, hasNext, header.SessionInfo); err != nil {
+						return err
+					}
+				}
+			}
+
+			if !hasNext {
+				break
+			}
 		}
 	}
 

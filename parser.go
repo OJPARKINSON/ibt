@@ -4,6 +4,41 @@ import (
 	"github.com/teamjorge/ibt/headers"
 )
 
+// StructParser wraps ZeroCopyParser and converts map results to TelemetryTick structs
+type StructParser struct {
+	*ZeroCopyParser
+	fieldSetters map[string]func(*TelemetryTick, interface{})
+}
+
+// NewStructParser creates a parser that outputs TelemetryTick structs
+func NewStructParser(reader *MmapReader, header *headers.Header, whitelist ...string) *StructParser {
+	baseParser := NewZeroCopyParser(reader, header, whitelist...)
+
+	return &StructParser{
+		ZeroCopyParser: baseParser,
+		fieldSetters:   buildFieldMap(),
+	}
+}
+
+// NextStruct returns the next telemetry tick as a struct
+func (p *StructParser) NextStruct() (*TelemetryTick, bool) {
+	tickMap, hasNext := p.NextZeroCopy()
+	if tickMap == nil {
+		return nil, false
+	}
+
+	tick := &TelemetryTick{}
+
+	// Convert map to struct using field setters
+	for fieldName, value := range tickMap {
+		if setter, exists := p.fieldSetters[fieldName]; exists {
+			setter(tick, value)
+		}
+	}
+
+	return tick, hasNext
+}
+
 // Parser is used to iterate and process telemetry variables for a given ibt file and it's headers.
 type Parser struct {
 	// File or Live Telemetry reader

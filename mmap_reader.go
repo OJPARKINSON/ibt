@@ -56,7 +56,7 @@ func (m *MmapReader) ReadAtUnsafe(off int64, size int) []byte {
 	if off < 0 || off+int64(size) > int64(len(m.data)) {
 		return nil
 	}
-	
+
 	// Return slice directly from mmap'd memory - zero copy
 	return (*[1 << 30]byte)(unsafe.Pointer(&m.data[off]))[:size:size]
 }
@@ -81,4 +81,10 @@ func (m *MmapReader) Close() error {
 func (m *MmapReader) ReadFrom(r interface{}) (int64, error) {
 	// Not used in telemetry parsing, but required for interface compliance
 	return 0, nil
+}
+
+// Data returns the entire memory-mapped data slice
+// This enables zero-copy parsing by allowing direct access to the map
+func (r *MmapReader) Data() []byte {
+	return r.data
 }
