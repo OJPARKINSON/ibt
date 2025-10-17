@@ -49,14 +49,15 @@ type Parser struct {
 
 	current int
 
-	// Pre-allocated buffer to eliminate per-tick allocations
-	bufferPool []byte
 	// Pre-allocated tick map to eliminate per-tick map allocations
 	tickPool Tick
 
 	// Fast path optimization: pre-computed variable headers for whitelist
 	varHeaders []headers.VarHeader
 	varNames   []string
+
+	// Cached mmap data pointer for zero-copy reads
+	mmapData []byte
 }
 
 // NewParser creates a new parser from a given ibt file, it's headers, and a variable whitelist.
@@ -76,8 +77,8 @@ func NewParser(reader *MmapReader, header *headers.Header, whitelist ...string) 
 
 	p.current = 1
 
-	// Pre-allocate buffer to eliminate per-tick allocations
-	p.bufferPool = make([]byte, header.TelemetryHeader.BufLen)
+	// Cache mmap data pointer once - avoids repeated Data() calls
+	p.mmapData = reader.Data()
 
 	// Pre-allocate tick map with capacity for whitelist (use capacity hint for better performance)
 	whitelistLen := len(whitelist)
@@ -145,13 +146,16 @@ func (p *Parser) ParseAt(offset int) Tick {
 
 // read the next buffer from offset to the current length set by the parser.
 func (p *Parser) read(start int) []byte {
-	// Reuse pre-allocated buffer instead of creating new one
-	_, err := p.reader.ReadAt(p.bufferPool, int64(start))
-	if err != nil {
+	// ZERO-COPY: Return slice directly from cached mmap memory instead of copying
+	bufLen := p.header.TelemetryHeader.BufLen
+
+	// Bounds check
+	if start < 0 || start+bufLen > len(p.mmapData) {
 		return nil
 	}
 
-	return p.bufferPool
+	// Return slice directly into mmap - no copy!
+	return p.mmapData[start : start+bufLen]
 }
 
 // readVarsFromBuffer reads each of the specified (whitelist) fields from the given buffer into a new Tick.
