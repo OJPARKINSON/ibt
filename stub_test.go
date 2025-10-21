@@ -2,17 +2,16 @@ package ibt
 
 import (
 	"bytes"
-	"os"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
 
-	"github.com/teamjorge/ibt/headers"
+	"github.com/OJPARKINSON/ibt/headers"
 )
 
 func TestStubs(t *testing.T) {
-	f, err := os.Open(".testing/valid_test_file.ibt")
+	f, err := NewMmapReader(".testing/valid_test_file.ibt")
 	if err != nil {
 		t.Errorf("failed to open testing file - %v", err)
 		return
@@ -452,12 +451,12 @@ func TestStubGroupSorting(t *testing.T) {
 
 func TestStubGroupClose(t *testing.T) {
 	t.Run("test normal close", func(t *testing.T) {
-		f1, err := os.Open(".testing/empty_test_file.ibt")
+		f1, err := NewMmapReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
 		defer f1.Close()
-		f2, err := os.Open(".testing/empty_test_file.ibt")
+		f2, err := NewMmapReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
@@ -483,12 +482,12 @@ func TestStubGroupClose(t *testing.T) {
 	})
 
 	t.Run("test close with error", func(t *testing.T) {
-		f1, err := os.Open(".testing/empty_test_file.ibt")
+		f1, err := NewMmapReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
 		defer f1.Close()
-		f2, err := os.Open(".testing/empty_test_file.ibt")
+		f2, err := NewMmapReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
@@ -513,12 +512,12 @@ func TestStubGroupClose(t *testing.T) {
 
 func TestCloseAllStubs(t *testing.T) {
 	t.Run("test normal close", func(t *testing.T) {
-		f1, err := os.Open(".testing/empty_test_file.ibt")
+		f1, err := NewMmapReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
 		defer f1.Close()
-		f2, err := os.Open(".testing/empty_test_file.ibt")
+		f2, err := NewMmapReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
@@ -548,12 +547,12 @@ func TestCloseAllStubs(t *testing.T) {
 	})
 
 	t.Run("test close with error", func(t *testing.T) {
-		f1, err := os.Open(".testing/empty_test_file.ibt")
+		f1, err := NewMmapReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
 		defer f1.Close()
-		f2, err := os.Open(".testing/empty_test_file.ibt")
+		f2, err := NewMmapReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}

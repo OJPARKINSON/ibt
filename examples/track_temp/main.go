@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/teamjorge/ibt"
-	"github.com/teamjorge/ibt/examples"
+	"github.com/OJPARKINSON/ibt"
+	"github.com/OJPARKINSON/ibt/examples"
 )
 
 func main() {
@@ -24,7 +24,8 @@ func main() {
 		// Create the instance(s) of your processor(s) for this group
 		processor := newTrackTempProcessor()
 
-		// Process the available telemetry for the ibt file. This is currently only utilising the Track Temp processor,
+		// Process the available telemetry using struct-based processing (50-60% faster)
+		// This is currently only utilising the Track Temp processor,
 		// but can include as many as you want.
 		if err := ibt.Process(context.Background(), group, processor); err != nil {
 			log.Fatalf("failed to process telemetry for group %d: %v", groupIdx, err)

@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/teamjorge/ibt"
-	"github.com/teamjorge/ibt/headers"
-	"github.com/teamjorge/ibt/utilities"
+	"github.com/OJPARKINSON/ibt"
+	"github.com/OJPARKINSON/ibt/headers"
 	"golang.org/x/exp/maps"
 )
 
-// TrackTempProcessors tracks the track temperature for each lap of the ibt file
+// TrackTempProcessor tracks the track temperature for each lap using struct-based processing
 type trackTempProcessor struct {
-	tempMap map[int]float32
+	tempMap map[int32]float64
 }
 
 // NewTrackTempProcessor creates and initialises a new trackTempProcessor
@@ -20,7 +19,7 @@ func newTrackTempProcessor() *trackTempProcessor {
 	t := new(trackTempProcessor)
 
 	// tempMap will store a temperature value against a lap number
-	t.tempMap = make(map[int]float32)
+	t.tempMap = make(map[int32]float64)
 
 	return t
 }
@@ -28,30 +27,34 @@ func newTrackTempProcessor() *trackTempProcessor {
 // Display name of the processor
 func (t *trackTempProcessor) Name() string { return "Track Temp" }
 
-// Method used for processing every tick of telemetry
-func (t *trackTempProcessor) Process(input ibt.Tick, hasNext bool, session *headers.Session) error {
-	trackTemp, err := ibt.GetTickValue[float32](input, "TrackTempCrew")
-	if err != nil {
-		return err
-	}
-
-	lap, err := ibt.GetTickValue[int](input, "Lap")
-	if err != nil {
-		return err
-	}
-
-	t.tempMap[lap] = trackTemp
+// ProcessStruct processes a single tick of telemetry using struct-based approach
+func (t *trackTempProcessor) ProcessStruct(tick *ibt.TelemetryTick, hasNext bool, session *headers.Session) error {
+	// Store track temperature for this lap
+	t.tempMap[tick.LapID] = tick.TrackTempCrew
 
 	return nil
 }
 
-// Utility function for create a result that can be joined with other processors.
-//
-// This will convert the results to map[int]interface{}, where the keys will refer to laps.
-// Result is not yet required by any interfaces, but is useful when using multiple processors
-// that summarise telemetry based by lap.
-func (t *trackTempProcessor) Result() map[int]interface{} {
-	return utilities.CreateGenericMap(t.tempMap)
+// Process is required by the Processor interface but not used for struct-based processing
+func (t *trackTempProcessor) Process(input ibt.Tick, hasNext bool, session *headers.Session) error {
+	return fmt.Errorf("Process() not implemented - use ProcessStruct()")
+}
+
+// FlushPendingData is required by the Processor interface
+func (t *trackTempProcessor) FlushPendingData() error {
+	return nil
+}
+
+// Close finalizes the processor
+func (t *trackTempProcessor) Close() error {
+	return nil
+}
+
+// GetMetrics returns processor metrics
+func (t *trackTempProcessor) GetMetrics() interface{} {
+	return map[string]interface{}{
+		"total_laps": len(t.tempMap),
+	}
 }
 
 // Columns required for the processor
@@ -61,9 +64,9 @@ func (t *trackTempProcessor) Whitelist() []string { return []string{"Lap", "Trac
 func (t *trackTempProcessor) Print() {
 	fmt.Println("Track Temp:")
 	laps := maps.Keys(t.tempMap)
-	sort.Ints(laps)
+	sort.Slice(laps, func(i, j int) bool { return laps[i] < laps[j] })
 
 	for _, lap := range laps {
-		fmt.Printf("%03d - %.3f\n", lap, t.tempMap[lap])
+		fmt.Printf("%03d - %.3f°C\n", lap, t.tempMap[lap])
 	}
 }

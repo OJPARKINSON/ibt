@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/teamjorge/ibt/headers"
+	"github.com/OJPARKINSON/ibt/headers"
 )
 
 func TestCarSetupKeysSort(t *testing.T) {
@@ -1626,7 +1626,7 @@ var expectedFullCarSetup = &CarSetup{
 var comparisonCarSetup = &CarSetup{
 	Name: "comparison setup",
 	Values: map[CarSetupKey]*CarSetupItem{
-		"Chassis|Front|HeaveRate": &CarSetupItem{
+		"Chassis|Front|HeaveRate": {
 			"780 N/mm",
 			[]CarSetupItemParsedValue{
 				{
@@ -1636,7 +1636,7 @@ var comparisonCarSetup = &CarSetup{
 				},
 			},
 		},
-		"TiresAero|TireCompound|TireCompound": &CarSetupItem{
+		"TiresAero|TireCompound|TireCompound": {
 			RawValue: "Soft",
 		},
 	},

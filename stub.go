@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/teamjorge/ibt/headers"
+	"github.com/OJPARKINSON/ibt/headers"
 )
 
 // Stub represents the headers and filename parsed from an ibt file.

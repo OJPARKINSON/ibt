@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/teamjorge/ibt"
+	"github.com/OJPARKINSON/ibt"
 )
 
 // Use the default testing file if no ibt files were provided

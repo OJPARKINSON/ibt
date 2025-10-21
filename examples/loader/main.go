@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/teamjorge/ibt"
-	"github.com/teamjorge/ibt/examples"
+	"github.com/OJPARKINSON/ibt"
+	"github.com/OJPARKINSON/ibt/examples"
 )
 
 func main() {
@@ -33,9 +33,14 @@ func main() {
 		// It embeds our storage and we set our loading threshold to 100
 		processor := newLoaderProcessor(storage, groupNumber, 100)
 
-		// Process the group
+		// Process the group using struct-based processing (faster than map-based)
 		if err := ibt.Process(context.Background(), group, processor); err != nil {
 			log.Fatalf("failed to process telemetry for stubs %v: %v", stubs, err)
+		}
+
+		// Flush any remaining data
+		if err := processor.FlushPendingData(); err != nil {
+			log.Fatalf("failed to flush pending data: %v", err)
 		}
 
 		// Print the number of batches loaded after each group

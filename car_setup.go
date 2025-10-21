@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/teamjorge/ibt/headers"
+	"github.com/OJPARKINSON/ibt/headers"
 )
 
 const (
