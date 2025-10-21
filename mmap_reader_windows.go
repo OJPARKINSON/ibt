@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+	kernel32               = syscall.NewLazyDLL("kernel32.dll")
 	procCreateFileMappingW = kernel32.NewProc("CreateFileMappingW")
-	procMapViewOfFile = kernel32.NewProc("MapViewOfFile")
-	procUnmapViewOfFile = kernel32.NewProc("UnmapViewOfFile")
-	procCloseHandle = kernel32.NewProc("CloseHandle")
+	procMapViewOfFile      = kernel32.NewProc("MapViewOfFile")
+	procUnmapViewOfFile    = kernel32.NewProc("UnmapViewOfFile")
+	procCloseHandle        = kernel32.NewProc("CloseHandle")
 )
 
 const (
@@ -25,10 +25,10 @@ const (
 
 // MmapReader provides memory-mapped file access for Windows
 type MmapReader struct {
-	data []byte
-	file *os.File
+	data    []byte
+	file    *os.File
 	mapping syscall.Handle
-	view uintptr
+	view    uintptr
 }
 
 // NewMmapReader creates a memory-mapped reader for the given file (Windows implementation)
@@ -84,11 +84,24 @@ func NewMmapReader(filename string) (*MmapReader, error) {
 	data := (*[1 << 30]byte)(unsafe.Pointer(view))[:stat.Size():stat.Size()]
 
 	return &MmapReader{
-		data: data,
-		file: file,
+		data:    data,
+		file:    file,
 		mapping: syscall.Handle(mapping),
-		view: view,
+		view:    view,
 	}, nil
+}
+
+// Read implements the io.Reader interface
+func (m *MmapReader) Read(p []byte) (int, error) {
+	// For header parsing compatibility - reads from beginning
+	if len(m.data) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p, m.data)
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
 }
 
 // ReadAt implements the io.ReaderAt interface with zero-copy reads
@@ -107,13 +120,16 @@ func (m *MmapReader) ReadAtUnsafe(off int64, size int) []byte {
 	if off < 0 || off+int64(size) > int64(len(m.data)) {
 		return nil
 	}
-	
+
 	// Return slice directly from mmap'd memory - zero copy
 	return (*[1 << 30]byte)(unsafe.Pointer(&m.data[off]))[:size:size]
 }
 
 // Close unmaps the file and closes handles
 func (m *MmapReader) Close() error {
+	if m == nil {
+		return nil
+	}
 	var err error
 
 	// Unmap view of file

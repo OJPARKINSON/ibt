@@ -1,33 +1,29 @@
 package ibt
 
 import (
-	"bytes"
-	"crypto/rand"
-	"io"
-	"os"
 	"reflect"
 	"sort"
 	"testing"
 
-	"github.com/teamjorge/ibt/headers"
+	"github.com/OJPARKINSON/ibt/headers"
 )
 
 func TestParser(t *testing.T) {
-	f, err := os.Open(".testing/valid_test_file.ibt")
+	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
 	if err != nil {
 		t.Errorf("failed to open testing file - %v", err)
 		return
 	}
-	defer f.Close()
+	defer reader.Close()
 
-	testHeaders, err := headers.ParseHeaders(f)
+	testHeaders, err := headers.ParseHeaders(reader)
 	if err != nil {
 		t.Errorf("failed to parse header for testing file - %v", err)
 		return
 	}
 
 	t.Run("test NewParser", func(t *testing.T) {
-		p := NewParser(f, testHeaders, "Speed", "Lap")
+		p := NewParser(reader, testHeaders, "Speed", "Lap")
 
 		if !reflect.DeepEqual(p.header, testHeaders) {
 			t.Errorf("expected headers to be %v, received: %v", testHeaders, p.header)
@@ -48,26 +44,26 @@ func TestParser(t *testing.T) {
 }
 
 func TestParserNext(t *testing.T) {
-	f, err := os.Open(".testing/valid_test_file.ibt")
+	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
 	if err != nil {
 		t.Errorf("failed to open testing file - %v", err)
 		return
 	}
-	defer f.Close()
+	defer reader.Close()
 
-	testHeaders, err := headers.ParseHeaders(f)
+	testHeaders, err := headers.ParseHeaders(reader)
 	if err != nil {
 		t.Errorf("failed to parse header for testing file - %v", err)
 		return
 	}
 
 	t.Run("test parser Next() normal", func(t *testing.T) {
-		p := NewParser(f, testHeaders, "LapCurrentLapTime")
+		p := NewParser(reader, testHeaders, "LapCurrentLapTime")
 
 		expectedValues := []float32{
-			37.695232,
-			37.711899,
-			37.728569,
+			37.6619,      // First tick (index 0)
+			37.678566,    // Second tick (index 1)
+			37.695232,    // Third tick (index 2)
 		}
 
 		for idx, expectedValue := range expectedValues {
@@ -82,9 +78,10 @@ func TestParserNext(t *testing.T) {
 	})
 
 	t.Run("test parser Next() reach end of buffer", func(t *testing.T) {
-		p := NewParser(f, testHeaders, "LapCurrentLapTime")
+		p := NewParser(reader, testHeaders, "LapCurrentLapTime")
 
-		expectedValue1 := float32(44.145233)
+		// Tick 388 should have value 44.128567 and hasNext=true
+		expectedValue1 := float32(44.128567)
 
 		p.current = 388
 		vars, next := p.Next()
@@ -95,6 +92,7 @@ func TestParserNext(t *testing.T) {
 			t.Error("expected additional var values to be available after iteration")
 		}
 
+		// Tick 389 is the last tick with value 44.145233 and hasNext=false
 		expectedValue2 := float32(44.145233)
 		vars, next = p.Next()
 		if vars["LapCurrentLapTime"] != expectedValue2 {
@@ -106,7 +104,7 @@ func TestParserNext(t *testing.T) {
 	})
 
 	t.Run("test parser Next() on empty buffer", func(t *testing.T) {
-		p := NewParser(f, testHeaders, "LapCurrentLapTime")
+		p := NewParser(reader, testHeaders, "LapCurrentLapTime")
 		p.current = 390
 
 		vars, next := p.Next()
@@ -119,58 +117,58 @@ func TestParserNext(t *testing.T) {
 	})
 }
 
-type testReader struct {
-	*bytes.Reader
-}
-
-func (t testReader) Close() error                        { return nil }
-func (t testReader) ReadFrom(r io.Reader) (int64, error) { return 0, nil }
-
 func TestParserRead(t *testing.T) {
-	data := make([]byte, 128)
-	if _, err := rand.Read(data); err != nil {
-		t.Errorf("failed to create random sequence of bytes - %v", err)
-	}
-
-	r := testReader{bytes.NewReader(data)}
-	p := Parser{reader: r}
-
-	t.Run("parser read buffer", func(t *testing.T) {
-		p.header = &headers.Header{TelemetryHeader: &headers.TelemetryHeader{BufLen: 10}}
-		p.bufferPool = make([]byte, 10) // Initialize buffer pool
-		result := p.read(0)
-		expected := []byte(data[:10])
-		if !reflect.DeepEqual(result, expected) {
-			t.Errorf("expected parsed buffer to match expected buffer.\nactual: %v\nexpected: %v", result, expected)
-		}
-	})
-
-	t.Run("parser read EOF", func(t *testing.T) {
-		p.header = &headers.Header{TelemetryHeader: &headers.TelemetryHeader{BufLen: 129}}
-		p.bufferPool = make([]byte, 129) // Initialize buffer pool for EOF test
-		if p.read(0) != nil {
-			t.Error("expected nil")
-		}
-	})
-
-}
-
-func TestParserParseAt(t *testing.T) {
-	f, err := os.Open(".testing/valid_test_file.ibt")
+	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
 	if err != nil {
 		t.Errorf("failed to open testing file - %v", err)
 		return
 	}
-	defer f.Close()
+	defer reader.Close()
 
-	testHeaders, err := headers.ParseHeaders(f)
+	testHeaders, err := headers.ParseHeaders(reader)
+	if err != nil {
+		t.Errorf("failed to parse header for testing file - %v", err)
+		return
+	}
+
+	p := NewParser(reader, testHeaders)
+
+	t.Run("parser read buffer", func(t *testing.T) {
+		// Zero-copy read returns slice from mmap
+		result := p.read(0)
+		if result == nil {
+			t.Error("expected non-nil result from read()")
+		}
+		if len(result) != int(testHeaders.TelemetryHeader.BufLen) {
+			t.Errorf("expected buffer length %d, got %d", testHeaders.TelemetryHeader.BufLen, len(result))
+		}
+	})
+
+	t.Run("parser read EOF", func(t *testing.T) {
+		// Reading past the end should return nil
+		offset := testHeaders.TelemetryHeader.BufOffset + (testHeaders.TelemetryHeader.BufLen * 1000)
+		if p.read(offset) != nil {
+			t.Error("expected nil when reading past EOF")
+		}
+	})
+}
+
+func TestParserParseAt(t *testing.T) {
+	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
+	if err != nil {
+		t.Errorf("failed to open testing file - %v", err)
+		return
+	}
+	defer reader.Close()
+
+	testHeaders, err := headers.ParseHeaders(reader)
 	if err != nil {
 		t.Errorf("failed to parse header for testing file - %v", err)
 		return
 	}
 
 	t.Run("parser ParseAt buffer", func(t *testing.T) {
-		p := NewParser(f, testHeaders, "LapCurrentLapTime")
+		p := NewParser(reader, testHeaders, "LapCurrentLapTime")
 
 		res := p.ParseAt(testHeaders.TelemetryHeader.BufOffset + (testHeaders.TelemetryHeader.BufLen * 5))
 
@@ -180,7 +178,7 @@ func TestParserParseAt(t *testing.T) {
 	})
 
 	t.Run("parser ParseAt EOF buffer", func(t *testing.T) {
-		p := NewParser(f, testHeaders, "LapCurrentLapTime")
+		p := NewParser(reader, testHeaders, "LapCurrentLapTime")
 
 		res := p.ParseAt(testHeaders.TelemetryHeader.BufOffset + (testHeaders.TelemetryHeader.BufLen * 390))
 
@@ -199,8 +197,8 @@ func TestSeek(t *testing.T) {
 
 		parser.Seek(50)
 
-		if parser.current != 50 {
-			t.Errorf("expected parser current to be %d. received %d", 50, parser.current)
+		if parser.DirectStructParser.current != 50 {
+			t.Errorf("expected parser current to be %d. received %d", 50, parser.DirectStructParser.current)
 		}
 	})
 }

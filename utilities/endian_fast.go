@@ -26,7 +26,7 @@ func FastByte4ToInt(in []byte) int {
 	return int(converted)
 }
 
-// FastByte8ToFloat uses unsafe pointer arithmetic for zero-copy conversion  
+// FastByte8ToFloat uses unsafe pointer arithmetic for zero-copy conversion
 func FastByte8ToFloat(in []byte) float64 {
 	if len(in) < 8 {
 		return 0

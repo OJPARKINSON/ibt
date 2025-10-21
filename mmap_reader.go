@@ -28,6 +28,15 @@ func NewMmapReader(filename string) (*MmapReader, error) {
 		return nil, err
 	}
 
+	// Handle empty files - can't mmap a 0-byte file
+	if stat.Size() == 0 {
+		file.Close()
+		return &MmapReader{
+			data: []byte{},
+			file: nil,
+		}, nil
+	}
+
 	data, err := syscall.Mmap(int(file.Fd()), 0, int(stat.Size()), syscall.PROT_READ, syscall.MAP_PRIVATE)
 	if err != nil {
 		file.Close()
@@ -38,6 +47,19 @@ func NewMmapReader(filename string) (*MmapReader, error) {
 		data: data,
 		file: file,
 	}, nil
+}
+
+// Read implements the io.Reader interface
+func (m *MmapReader) Read(p []byte) (int, error) {
+	// For header parsing compatibility - reads from beginning
+	if len(m.data) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p, m.data)
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
 }
 
 // ReadAt implements the io.ReaderAt interface with zero-copy reads
@@ -63,6 +85,9 @@ func (m *MmapReader) ReadAtUnsafe(off int64, size int) []byte {
 
 // Close unmaps the file and closes the file descriptor
 func (m *MmapReader) Close() error {
+	if m == nil {
+		return nil
+	}
 	var err error
 	if m.data != nil {
 		err = syscall.Munmap(m.data)
