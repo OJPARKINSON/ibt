@@ -130,33 +130,39 @@ func (m *MmapReader) Close() error {
 	if m == nil {
 		return nil
 	}
+
+	// Check if already closed (data, view, mapping, and file are all zero/nil)
+	if m.data == nil && m.view == 0 && m.mapping == 0 && m.file == nil {
+		return os.ErrClosed
+	}
+
 	var err error
 
-	// Unmap view of file
-	if m.view != 0 {
+	// Unmap view of file (only if we mapped something)
+	if m.view != 0 && len(m.data) > 0 {
 		if ret, _, winErr := procUnmapViewOfFile.Call(m.view); ret == 0 {
 			err = fmt.Errorf("UnmapViewOfFile failed: %v", winErr)
 		}
-		m.view = 0
 	}
+	m.view = 0
 
-	// Close mapping handle
-	if m.mapping != 0 {
+	// Close mapping handle (only if we created one)
+	if m.mapping != 0 && len(m.data) > 0 {
 		if ret, _, winErr := procCloseHandle.Call(uintptr(m.mapping)); ret == 0 && err == nil {
 			err = fmt.Errorf("CloseHandle (mapping) failed: %v", winErr)
 		}
-		m.mapping = 0
 	}
+	m.mapping = 0
 
 	// Close file handle
 	if m.file != nil {
 		if closeErr := m.file.Close(); closeErr != nil && err == nil {
 			err = closeErr
 		}
-		m.file = nil
 	}
-
+	m.file = nil
 	m.data = nil
+
 	return err
 }
 
@@ -164,4 +170,10 @@ func (m *MmapReader) Close() error {
 func (m *MmapReader) ReadFrom(r interface{}) (int64, error) {
 	// Not used in telemetry parsing, but required for interface compliance
 	return 0, nil
+}
+
+// Data returns the entire memory-mapped data slice
+// This enables zero-copy parsing by allowing direct access to the map
+func (m *MmapReader) Data() []byte {
+	return m.data
 }

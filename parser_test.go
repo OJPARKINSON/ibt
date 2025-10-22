@@ -61,9 +61,9 @@ func TestParserNext(t *testing.T) {
 		p := NewParser(reader, testHeaders, "LapCurrentLapTime")
 
 		expectedValues := []float32{
-			37.6619,      // First tick (index 0)
-			37.678566,    // Second tick (index 1)
-			37.695232,    // Third tick (index 2)
+			37.6619,   // First tick (index 0)
+			37.678566, // Second tick (index 1)
+			37.695232, // Third tick (index 2)
 		}
 
 		for idx, expectedValue := range expectedValues {

@@ -88,11 +88,19 @@ func (m *MmapReader) Close() error {
 	if m == nil {
 		return nil
 	}
-	var err error
-	if m.data != nil {
-		err = syscall.Munmap(m.data)
-		m.data = nil
+
+	// Check if already closed (both data and file are nil)
+	if m.data == nil && m.file == nil {
+		return os.ErrClosed
 	}
+
+	var err error
+	// Only Munmap if we actually mapped something (non-empty file)
+	if m.data != nil && len(m.data) > 0 {
+		err = syscall.Munmap(m.data)
+	}
+	m.data = nil
+
 	if m.file != nil {
 		if closeErr := m.file.Close(); closeErr != nil && err == nil {
 			err = closeErr

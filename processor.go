@@ -9,17 +9,42 @@ import (
 	"github.com/OJPARKINSON/ibt/utilities"
 )
 
+// Processor processes telemetry data tick by tick.
+// Whitelists are automatically extracted from the Fields() struct tags.
+//
+// Example:
+//
+//	type MyProcessor struct {
+//		cache []*ibt.TelemetryTick
+//	}
+//
+//	func (p *MyProcessor) Fields() interface{} {
+//		return struct {
+//			Speed float64 `ibt:"Speed"`
+//			RPM   float64 `ibt:"RPM"`
+//		}{}
+//	}
+//
+//	func (p *MyProcessor) ProcessStruct(tick *ibt.TelemetryTick, ...) error {
+//		p.cache = append(p.cache, tick)
+//		return nil
+//	}
 type Processor interface {
-	Process(input Tick, hasNext bool, session *headers.Session) error
-	Whitelist() []string
-	FlushPendingData() error
-	Close() error
-	GetMetrics() interface{} // Returns ProcessorMetrics from internal/processing
-}
-
-type StructProcessor interface {
-	Processor
+	// ProcessStruct is called for each tick of telemetry data
 	ProcessStruct(tick *TelemetryTick, hasNext bool, session *headers.Session) error
+
+	// Fields returns a struct with ibt tags defining required telemetry fields
+	// The whitelist is automatically extracted from these tags
+	Fields() interface{}
+
+	// FlushPendingData flushes any cached data
+	FlushPendingData() error
+
+	// Close finalizes the processor
+	Close() error
+
+	// GetMetrics returns processor metrics for monitoring
+	GetMetrics() interface{}
 }
 
 func Process(ctx context.Context, stubs StubGroup, processors ...Processor) error {
@@ -42,11 +67,10 @@ func Process(ctx context.Context, stubs StubGroup, processors ...Processor) erro
 func process(ctx context.Context, stub Stub, processors ...Processor) error {
 	header := stub.header
 
-	// Only parse fields that are actually needed by all processors combined
+	// Auto-extract whitelist from all processors using their Fields() definitions
 	whitelist := buildWhitelist(header.VarHeader, processors...)
 
-	// ALWAYS use struct-based parsing for maximum performance
-	// Convert to map only for legacy processors that don't support StructProcessor
+	// Create struct parser (always uses struct-based parsing)
 	parser := NewStructParser(stub.r, header, whitelist...)
 
 	for {
@@ -61,20 +85,10 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 			break
 		}
 
-		// Process all processors - use struct path if supported, map path for legacy
+		// Process all processors (single simple path - no legacy branching)
 		for _, processor := range processors {
-			// Try struct-based processing first (optimal path)
-			if sp, ok := processor.(StructProcessor); ok {
-				if err := sp.ProcessStruct(tick, hasNext, header.SessionInfo); err != nil {
-					return err
-				}
-			} else {
-				// Legacy processor - convert struct to map
-				procWhitelist := processor.Whitelist()
-				tickMap := tick.ToMap(procWhitelist)
-				if err := processor.Process(tickMap, hasNext, header.SessionInfo); err != nil {
-					return err
-				}
+			if err := processor.ProcessStruct(tick, hasNext, header.SessionInfo); err != nil {
+				return err
 			}
 		}
 
@@ -86,41 +100,23 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 	return nil
 }
 
-// getcinoketeWhitelist compiles the whitelists from all processors and removes overlap
+// buildWhitelist compiles the whitelists from all processors by auto-extracting
+// field names from their Fields() struct tags, and removes overlap.
 func buildWhitelist(vars map[string]headers.VarHeader, processors ...Processor) []string {
 	whitelist := make([]string, 0)
 
 	for _, proc := range processors {
-		whitelist = append(whitelist, parseAndValidateWhitelist(vars, proc)...)
+		// Auto-extract whitelist from Fields() struct tags
+		fields := proc.Fields()
+		autoWhitelist := BuildWhitelistFromStruct(fields)
+
+		// Validate against available vars in the file
+		for _, fieldName := range autoWhitelist {
+			if _, ok := vars[fieldName]; ok {
+				whitelist = append(whitelist, fieldName)
+			}
+		}
 	}
 
 	return utilities.GetDistinct(whitelist)
-}
-
-// parseWhitelist will retrieve vars when * is used and ensure a unique list
-//
-// Variables that are not found in the VarHeader will automatically be excluded.
-func parseAndValidateWhitelist(vars map[string]headers.VarHeader, processor Processor) []string {
-	whitelist := processor.Whitelist()
-
-	if len(whitelist) == 0 {
-		return headers.AvailableVars(vars)
-	}
-
-	for _, col := range whitelist {
-		if col == "*" {
-			return headers.AvailableVars(vars)
-		}
-	}
-
-	columns := make([]string, 0)
-
-	// Ensure only valid columns are added
-	for _, col := range whitelist {
-		if _, ok := vars[col]; ok {
-			columns = append(columns, col)
-		}
-	}
-
-	return columns
 }

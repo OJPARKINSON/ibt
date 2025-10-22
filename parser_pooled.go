@@ -32,8 +32,8 @@ func NewZeroCopyParser(reader *MmapReader, header *headers.Header, whitelist ...
 
 	return &ZeroCopyParser{
 		DirectStructParser: directParser,
-		whitelist:         whitelist,
-		resultTick:        make(Tick, len(whitelist)),
+		whitelist:          whitelist,
+		resultTick:         make(Tick, len(whitelist)),
 		tickResultPool: &sync.Pool{
 			New: func() interface{} {
 				return make(Tick, len(whitelist))

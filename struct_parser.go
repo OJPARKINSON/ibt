@@ -29,7 +29,8 @@ type DirectStructParser struct {
 	varNames   []string
 
 	// DirectStructParser specific fields
-	fieldMap map[string]fieldSetter
+	fieldMap         map[string]fieldSetter
+	sessionStartTime time.Time
 
 	// Template cache for ToMapWithTemplate performance
 	// Maps reflect.Type to extracted whitelist (from ibt tags)
@@ -97,16 +98,25 @@ func NewDirectStructParser(reader *MmapReader, header *headers.Header, whitelist
 		mmapData = reader.Data()
 	}
 
+	// Calculate session start time from the file's start date
+	// This will be used to compute absolute timestamps for each tick
+	// Use zero time if DiskHeader is not available (some tests)
+	var sessionStartTime time.Time
+	if header.DiskHeader != nil {
+		sessionStartTime = time.Unix(header.DiskHeader.StartDate, 0)
+	}
+
 	return &DirectStructParser{
-		reader:        reader,
-		whitelist:     whitelist,
-		header:        header,
-		current:       0,
-		mmapData:      mmapData,
-		varHeaders:    varHeaders,
-		varNames:      varNames,
-		fieldMap:      buildFieldSetters(),
-		templateCache: make(map[reflect.Type][]string),
+		reader:           reader,
+		whitelist:        whitelist,
+		header:           header,
+		current:          0,
+		mmapData:         mmapData,
+		varHeaders:       varHeaders,
+		varNames:         varNames,
+		fieldMap:         buildFieldSetters(),
+		sessionStartTime: sessionStartTime,
+		templateCache:    make(map[reflect.Type][]string),
 	}
 }
 
@@ -136,10 +146,8 @@ func (p *DirectStructParser) NextStruct() (*TelemetryTick, bool) {
 	nextStart := p.header.TelemetryHeader.BufOffset + ((p.current + 1) * p.header.TelemetryHeader.BufLen)
 	nextBuf := p.read(nextStart)
 
-	// Create tick with current timestamp
-	tick := &TelemetryTick{
-		TickTime: time.Now(),
-	}
+	// Create tick (TickTime will be calculated after SessionTime is populated)
+	tick := &TelemetryTick{}
 
 	// Populate fields using pre-computed variable headers
 	for i, varHeader := range p.varHeaders {
@@ -148,6 +156,10 @@ func (p *DirectStructParser) NextStruct() (*TelemetryTick, bool) {
 			setter(tick, currentBuf, varHeader.Offset)
 		}
 	}
+
+	// Calculate absolute timestamp: session start + elapsed session time
+	// SessionTime is in seconds (float64), so convert to Duration and add to start time
+	tick.TickTime = p.sessionStartTime.Add(time.Duration(tick.SessionTime * float64(time.Second)))
 
 	p.current++
 
@@ -159,14 +171,14 @@ func (p *DirectStructParser) NextStruct() (*TelemetryTick, bool) {
 func buildFieldSetters() map[string]fieldSetter {
 	return map[string]fieldSetter{
 		// Integer fields - Lap & Position
-		"Lap":                     setInt32(func(t *TelemetryTick, v int32) { t.LapID = v }),
-		"PlayerCarClassPosition":  setInt32(func(t *TelemetryTick, v int32) { t.PlayerCarClassPosition = v }),
-		"PlayerCarIdx":            setInt32(func(t *TelemetryTick, v int32) { t.PlayerCarIdx = v }),
+		"Lap":                    setInt32(func(t *TelemetryTick, v int32) { t.LapID = v }),
+		"PlayerCarClassPosition": setInt32(func(t *TelemetryTick, v int32) { t.PlayerCarClassPosition = v }),
+		"PlayerCarIdx":           setInt32(func(t *TelemetryTick, v int32) { t.PlayerCarIdx = v }),
 
 		// Integer fields - Lap Timing
-		"LapBestLap":    setInt32(func(t *TelemetryTick, v int32) { t.LapBestLap = v }),
+		"LapBestLap":     setInt32(func(t *TelemetryTick, v int32) { t.LapBestLap = v }),
 		"LapBestNLapLap": setInt32(func(t *TelemetryTick, v int32) { t.LapBestNLapLap = v }),
-		"LapLasNLapSeq": setInt32(func(t *TelemetryTick, v int32) { t.LapLasNLapSeq = v }),
+		"LapLasNLapSeq":  setInt32(func(t *TelemetryTick, v int32) { t.LapLasNLapSeq = v }),
 
 		// Integer fields - Session
 		"SessionNum":        setInt32(func(t *TelemetryTick, v int32) { t.SessionNum = v }),
@@ -175,25 +187,25 @@ func buildFieldSetters() map[string]fieldSetter {
 		"SessionUniqueID":   setInt32(func(t *TelemetryTick, v int32) { t.SessionUniqueID = v }),
 
 		// Integer fields - Environment & System
-		"Skies":           setInt32(func(t *TelemetryTick, v int32) { t.Skies = v }),
-		"WeatherType":     setInt32(func(t *TelemetryTick, v int32) { t.WeatherType = v }),
-		"EnterExitReset":  setInt32(func(t *TelemetryTick, v int32) { t.EnterExitReset = v }),
+		"Skies":          setInt32(func(t *TelemetryTick, v int32) { t.Skies = v }),
+		"WeatherType":    setInt32(func(t *TelemetryTick, v int32) { t.WeatherType = v }),
+		"EnterExitReset": setInt32(func(t *TelemetryTick, v int32) { t.EnterExitReset = v }),
 
 		// Uint32 fields
 		"Gear": setUint32(func(t *TelemetryTick, v uint32) { t.Gear = v }),
 
 		// Bool fields - Delta Timing
-		"LapDeltaToBestLap_OK":            setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToBestLap_OK = v }),
-		"LapDeltaToOptimalLap_OK":         setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToOptimalLap_OK = v }),
-		"LapDeltaToSessionBestLap_OK":     setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToSessionBestLap_OK = v }),
-		"LapDeltaToSessionLastlLap_OK":    setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToSessionLastlLap_OK = v }),
-		"LapDeltaToSessionOptimalLap_OK":  setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToSessionOptimalLap_OK = v }),
+		"LapDeltaToBestLap_OK":           setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToBestLap_OK = v }),
+		"LapDeltaToOptimalLap_OK":        setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToOptimalLap_OK = v }),
+		"LapDeltaToSessionBestLap_OK":    setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToSessionBestLap_OK = v }),
+		"LapDeltaToSessionLastlLap_OK":   setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToSessionLastlLap_OK = v }),
+		"LapDeltaToSessionOptimalLap_OK": setBool(func(t *TelemetryTick, v bool) { t.LapDeltaToSessionOptimalLap_OK = v }),
 
 		// Bool fields - Track Position & System
-		"IsOnTrack":             setBool(func(t *TelemetryTick, v bool) { t.IsOnTrack = v }),
-		"IsOnTrackCar":          setBool(func(t *TelemetryTick, v bool) { t.IsOnTrackCar = v }),
-		"OnPitRoad":             setBool(func(t *TelemetryTick, v bool) { t.OnPitRoad = v }),
-		"DriverMarker":          setBool(func(t *TelemetryTick, v bool) { t.DriverMarker = v }),
+		"IsOnTrack":               setBool(func(t *TelemetryTick, v bool) { t.IsOnTrack = v }),
+		"IsOnTrackCar":            setBool(func(t *TelemetryTick, v bool) { t.IsOnTrackCar = v }),
+		"OnPitRoad":               setBool(func(t *TelemetryTick, v bool) { t.OnPitRoad = v }),
+		"DriverMarker":            setBool(func(t *TelemetryTick, v bool) { t.DriverMarker = v }),
 		"dcTractionControlToggle": setBool(func(t *TelemetryTick, v bool) { t.DcTractionControlToggle = v }),
 
 		// Float32 fields (stored as float64) - Lap & Position
@@ -209,30 +221,30 @@ func buildFieldSetters() map[string]fieldSetter {
 		"LapBestNLapTime":   setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapBestNLapTime = v }),
 
 		// Float32 fields - Delta Timing
-		"LapDeltaToBestLap":                setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToBestLap = v }),
-		"LapDeltaToBestLap_DD":             setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToBestLap_DD = v }),
-		"LapDeltaToOptimalLap":             setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToOptimalLap = v }),
-		"LapDeltaToOptimalLap_DD":          setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToOptimalLap_DD = v }),
-		"LapDeltaToSessionBestLap":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionBestLap = v }),
-		"LapDeltaToSessionBestLap_DD":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionBestLap_DD = v }),
-		"LapDeltaToSessionLastlLap":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionLastlLap = v }),
-		"LapDeltaToSessionLastlLap_DD":     setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionLastlLap_DD = v }),
-		"LapDeltaToSessionOptimalLap":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionOptimalLap = v }),
-		"LapDeltaToSessionOptimalLap_DD":   setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionOptimalLap_DD = v }),
+		"LapDeltaToBestLap":              setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToBestLap = v }),
+		"LapDeltaToBestLap_DD":           setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToBestLap_DD = v }),
+		"LapDeltaToOptimalLap":           setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToOptimalLap = v }),
+		"LapDeltaToOptimalLap_DD":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToOptimalLap_DD = v }),
+		"LapDeltaToSessionBestLap":       setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionBestLap = v }),
+		"LapDeltaToSessionBestLap_DD":    setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionBestLap_DD = v }),
+		"LapDeltaToSessionLastlLap":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionLastlLap = v }),
+		"LapDeltaToSessionLastlLap_DD":   setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionLastlLap_DD = v }),
+		"LapDeltaToSessionOptimalLap":    setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionOptimalLap = v }),
+		"LapDeltaToSessionOptimalLap_DD": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.LapDeltaToSessionOptimalLap_DD = v }),
 
 		// Float32 fields - Driver Inputs
-		"Throttle":           setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.Throttle = v }),
-		"ThrottleRaw":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.ThrottleRaw = v }),
-		"Brake":              setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.Brake = v }),
-		"BrakeRaw":           setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.BrakeRaw = v }),
-		"Clutch":             setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.Clutch = v }),
-		"SteeringWheelAngle": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelAngle = v }),
-		"SteeringWheelAngleMax": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelAngleMax = v }),
-		"SteeringWheelTorque": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelTorque = v }),
-		"SteeringWheelPctTorque": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelPctTorque = v }),
-		"SteeringWheelPctTorqueSign": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelPctTorqueSign = v }),
+		"Throttle":                        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.Throttle = v }),
+		"ThrottleRaw":                     setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.ThrottleRaw = v }),
+		"Brake":                           setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.Brake = v }),
+		"BrakeRaw":                        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.BrakeRaw = v }),
+		"Clutch":                          setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.Clutch = v }),
+		"SteeringWheelAngle":              setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelAngle = v }),
+		"SteeringWheelAngleMax":           setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelAngleMax = v }),
+		"SteeringWheelTorque":             setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelTorque = v }),
+		"SteeringWheelPctTorque":          setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelPctTorque = v }),
+		"SteeringWheelPctTorqueSign":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelPctTorqueSign = v }),
 		"SteeringWheelPctTorqueSignStops": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelPctTorqueSignStops = v }),
-		"SteeringWheelPctDamper": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelPctDamper = v }),
+		"SteeringWheelPctDamper":          setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.SteeringWheelPctDamper = v }),
 
 		// Float32 fields - Speed & Motion
 		"Speed":     setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.Speed = v }),
@@ -272,20 +284,20 @@ func buildFieldSetters() map[string]fieldSetter {
 		"ManifoldPress":     setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.ManifoldPress = v }),
 
 		// Float32 fields - Fuel
-		"FuelLevel":       setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.FuelLevel = v }),
-		"FuelLevelPct":    setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.FuelLevelPct = v }),
-		"FuelUsePerHour":  setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.FuelUsePerHour = v }),
+		"FuelLevel":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.FuelLevel = v }),
+		"FuelLevelPct":   setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.FuelLevelPct = v }),
+		"FuelUsePerHour": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.FuelUsePerHour = v }),
 
 		// Float32 fields - Environment
-		"AirDensity":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.AirDensity = v }),
-		"AirPressure":     setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.AirPressure = v }),
-		"AirTemp":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.AirTemp = v }),
-		"FogLevel":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.FogLevel = v }),
+		"AirDensity":       setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.AirDensity = v }),
+		"AirPressure":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.AirPressure = v }),
+		"AirTemp":          setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.AirTemp = v }),
+		"FogLevel":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.FogLevel = v }),
 		"RelativeHumidity": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.RelativeHumidity = v }),
-		"TrackTemp":       setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.TrackTemp = v }),
-		"TrackTempCrew":   setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.TrackTempCrew = v }),
-		"WindDir":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.WindDir = v }),
-		"WindVel":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.WindVel = v }),
+		"TrackTemp":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.TrackTemp = v }),
+		"TrackTempCrew":    setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.TrackTempCrew = v }),
+		"WindDir":          setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.WindDir = v }),
+		"WindVel":          setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.WindVel = v }),
 
 		// Float32 fields - System
 		"CpuUsageBG": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.CpuUsageBG = v }),
@@ -375,25 +387,25 @@ func buildFieldSetters() map[string]fieldSetter {
 		"RRbrakeLinePress": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.RRbrakeLinePress = v }),
 
 		// Float32 fields - Dynamic In-Car Adjustments
-		"dcABS":              setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcABS = v }),
-		"dcAntiRollFront":    setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcAntiRollFront = v }),
-		"dcAntiRollRear":     setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcAntiRollRear = v }),
-		"dcBoostLevel":       setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcBoostLevel = v }),
-		"dcBrakeBias":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcBrakeBias = v }),
-		"dcDiffEntry":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcDiffEntry = v }),
-		"dcDiffExit":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcDiffExit = v }),
-		"dcDiffMiddle":       setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcDiffMiddle = v }),
-		"dcEngineBraking":    setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcEngineBraking = v }),
-		"dcEnginePower":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcEnginePower = v }),
-		"dcFuelMixture":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcFuelMixture = v }),
-		"dcRevLimiter":       setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcRevLimiter = v }),
-		"dcThrottleShape":    setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcThrottleShape = v }),
-		"dcTractionControl":  setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcTractionControl = v }),
-		"dcTractionControl2": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcTractionControl2 = v }),
-		"dcWeightJackerLeft": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcWeightJackerLeft = v }),
+		"dcABS":               setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcABS = v }),
+		"dcAntiRollFront":     setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcAntiRollFront = v }),
+		"dcAntiRollRear":      setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcAntiRollRear = v }),
+		"dcBoostLevel":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcBoostLevel = v }),
+		"dcBrakeBias":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcBrakeBias = v }),
+		"dcDiffEntry":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcDiffEntry = v }),
+		"dcDiffExit":          setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcDiffExit = v }),
+		"dcDiffMiddle":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcDiffMiddle = v }),
+		"dcEngineBraking":     setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcEngineBraking = v }),
+		"dcEnginePower":       setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcEnginePower = v }),
+		"dcFuelMixture":       setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcFuelMixture = v }),
+		"dcRevLimiter":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcRevLimiter = v }),
+		"dcThrottleShape":     setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcThrottleShape = v }),
+		"dcTractionControl":   setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcTractionControl = v }),
+		"dcTractionControl2":  setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcTractionControl2 = v }),
+		"dcWeightJackerLeft":  setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcWeightJackerLeft = v }),
 		"dcWeightJackerRight": setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcWeightJackerRight = v }),
-		"dcWingFront":        setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcWingFront = v }),
-		"dcWingRear":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcWingRear = v }),
+		"dcWingFront":         setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcWingFront = v }),
+		"dcWingRear":          setFloat32AsFloat64(func(t *TelemetryTick, v float64) { t.DcWingRear = v }),
 
 		// Float64 fields (GPS coordinates and session time use double precision)
 		"SessionTime":       setFloat64(func(t *TelemetryTick, v float64) { t.SessionTime = v }),

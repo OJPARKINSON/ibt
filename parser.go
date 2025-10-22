@@ -55,7 +55,7 @@ func NewParser(reader *MmapReader, header *headers.Header, whitelist ...string) 
 
 	return &Parser{
 		DirectStructParser: directParser,
-		whitelist:         whitelist,
+		whitelist:          whitelist,
 	}
 }
 
