@@ -27,14 +27,21 @@ func newLoaderProcessor(storage *storage, groupNumber int, threshold int) *loade
 	}
 }
 
-// Columns we want to parse from telemetry
-func (l *loaderProcessor) Whitelist() []string {
-	return []string{
-		"Lap", "ThrottleRaw", "BrakeRaw", "Clutch", "LapDistPct", "Lat", "Lon",
-	}
+// Fields defines the telemetry fields this processor needs.
+// Whitelist is automatically extracted from ibt tags.
+func (l *loaderProcessor) Fields() interface{} {
+	return struct {
+		LapID       int32   `ibt:"Lap"`
+		ThrottleRaw float64 `ibt:"ThrottleRaw"`
+		BrakeRaw    float64 `ibt:"BrakeRaw"`
+		Clutch      float64 `ibt:"Clutch"`
+		LapDistPct  float64 `ibt:"LapDistPct"`
+		Lat         float64 `ibt:"Lat"`
+		Lon         float64 `ibt:"Lon"`
+	}{}
 }
 
-// ProcessStruct processes a single tick of telemetry using struct-based approach
+// ProcessStruct processes a single tick of telemetry
 func (l *loaderProcessor) ProcessStruct(tick *ibt.TelemetryTick, hasNext bool, session *headers.Session) error {
 	// Set group number
 	tick.GroupNum = l.groupNumber
@@ -52,11 +59,6 @@ func (l *loaderProcessor) ProcessStruct(tick *ibt.TelemetryTick, hasNext bool, s
 	}
 
 	return nil
-}
-
-// Process is required by the Processor interface but not used for struct-based processing
-func (l *loaderProcessor) Process(input ibt.Tick, hasNext bool, session *headers.Session) error {
-	return fmt.Errorf("Process() not implemented - use ProcessStruct()")
 }
 
 // FlushPendingData flushes any remaining cached data

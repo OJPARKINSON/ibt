@@ -495,7 +495,7 @@ func TestStubGroupClose(t *testing.T) {
 
 		stubGroup := StubGroup{
 			Stub{filepath: "5.ibt", r: f1},
-			Stub{filepath: "3.ibt", r: f2},
+			Stub{filepath: ".testing/empty_test_file.ibt", r: f2},
 		}
 
 		err = stubGroup.Close()
@@ -563,7 +563,7 @@ func TestCloseAllStubs(t *testing.T) {
 				Stub{filepath: "5.ibt", r: f1},
 			},
 			{
-				Stub{filepath: "3.ibt", r: f2},
+				Stub{filepath: ".testing/empty_test_file.ibt", r: f2},
 			},
 		}
 

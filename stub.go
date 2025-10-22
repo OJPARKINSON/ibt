@@ -33,7 +33,9 @@ func (stub *Stub) Open() (err error) {
 // Close the stub reader
 func (stub *Stub) Close() error {
 	if stub.r != nil {
-		return stub.r.Close()
+		if err := stub.r.Close(); err != nil {
+			return fmt.Errorf("close %s: %w", stub.filepath, err)
+		}
 	}
 	return nil
 }

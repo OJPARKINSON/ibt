@@ -1,2 +1,6 @@
 .telem
 todo
+examples/loader/loader
+.gitignore
+examples/track_temp/track_temp
+examples/template_conversion/template_conversion

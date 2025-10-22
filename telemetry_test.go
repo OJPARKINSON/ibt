@@ -28,7 +28,7 @@ type EmptyTemplate struct {
 }
 
 type MixedTemplate struct {
-	Speed    float64 `ibt:"Speed"`    // Has tag
+	Speed    float64 `ibt:"Speed"` // Has tag
 	Gear     uint32  // No tag
 	Throttle float64 `ibt:"Throttle"` // Has tag
 }

@@ -27,20 +27,23 @@ func newTrackTempProcessor() *trackTempProcessor {
 // Display name of the processor
 func (t *trackTempProcessor) Name() string { return "Track Temp" }
 
-// ProcessStruct processes a single tick of telemetry using struct-based approach
+// Fields defines the telemetry fields this processor needs.
+// Whitelist is automatically extracted from ibt tags.
+func (t *trackTempProcessor) Fields() interface{} {
+	return struct {
+		LapID         int32   `ibt:"Lap"`
+		TrackTempCrew float64 `ibt:"TrackTempCrew"`
+	}{}
+}
+
+// ProcessStruct processes a single tick of telemetry
 func (t *trackTempProcessor) ProcessStruct(tick *ibt.TelemetryTick, hasNext bool, session *headers.Session) error {
 	// Store track temperature for this lap
 	t.tempMap[tick.LapID] = tick.TrackTempCrew
-
 	return nil
 }
 
-// Process is required by the Processor interface but not used for struct-based processing
-func (t *trackTempProcessor) Process(input ibt.Tick, hasNext bool, session *headers.Session) error {
-	return fmt.Errorf("Process() not implemented - use ProcessStruct()")
-}
-
-// FlushPendingData is required by the Processor interface
+// FlushPendingData flushes any cached data
 func (t *trackTempProcessor) FlushPendingData() error {
 	return nil
 }
@@ -56,9 +59,6 @@ func (t *trackTempProcessor) GetMetrics() interface{} {
 		"total_laps": len(t.tempMap),
 	}
 }
-
-// Columns required for the processor
-func (t *trackTempProcessor) Whitelist() []string { return []string{"Lap", "TrackTempCrew"} }
 
 // Print the summarised Track Temperature
 func (t *trackTempProcessor) Print() {

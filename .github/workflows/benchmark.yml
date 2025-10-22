@@ -1,0 +1,82 @@
+name: Cross-Platform Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: ['1.22', '1.23']
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Download test data
+      run: |
+        # Add commands to download/generate test .ibt files if needed
+        ls -la .testing/ || echo "Test files may need to be added"
+
+    - name: Run Benchmarks
+      run: |
+        cd ibt
+        go test -bench=BenchmarkMmap -run=^$ -benchmem -benchtime=3s > bench_${{ matrix.os }}_go${{ matrix.go-version }}.txt
+        cat bench_${{ matrix.os }}_go${{ matrix.go-version }}.txt
+
+    - name: Upload Benchmark Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmarks-${{ matrix.os }}-go${{ matrix.go-version }}
+        path: ibt/bench_*.txt
+
+    - name: Compare Results (on PR)
+      if: github.event_name == 'pull_request'
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'go'
+        output-file-path: ibt/bench_${{ matrix.os }}_go${{ matrix.go-version }}.txt
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        comment-on-alert: true
+        alert-threshold: '150%'
+        fail-on-alert: false
+
+  compare:
+    needs: benchmark
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+
+    - name: Compare Platform Performance
+      run: |
+        echo "# Cross-Platform Benchmark Comparison" > comparison.md
+        echo "" >> comparison.md
+        echo "## Results by Platform" >> comparison.md
+        echo "" >> comparison.md
+
+        for dir in benchmarks-*/; do
+          echo "### ${dir}" >> comparison.md
+          cat "${dir}"/*.txt | grep "Benchmark" >> comparison.md
+          echo "" >> comparison.md
+        done
+
+        cat comparison.md
+
+    - name: Upload Comparison
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-comparison
+        path: comparison.md
