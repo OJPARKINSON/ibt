@@ -1,0 +1,21 @@
+assert_lefthook_installed: true
+skip_lfs: true
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint & test
+      glob: "*.go"
+      group:
+        jobs:
+          - run: bin/golangci-lint run --fix
+            tags: lint
+            stage_fixed: true
+
+          - run: make test
+            tags: test
+
+    - name: fix typos
+      tags: lint
+      run: typos --write-changes {staged_files}
+      stage_fixed: true
