@@ -33,7 +33,6 @@ jobs:
 
     - name: Run Benchmarks
       run: |
-        cd ibt
         go test -bench=BenchmarkMmap -run=^$ -benchmem -benchtime=3s > bench_${{ matrix.os }}_go${{ matrix.go-version }}.txt
         cat bench_${{ matrix.os }}_go${{ matrix.go-version }}.txt
 
