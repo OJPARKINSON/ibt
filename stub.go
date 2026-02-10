@@ -17,12 +17,12 @@ import (
 type Stub struct {
 	filepath string
 	header   *headers.Header
-	r        *MmapReader
+	r        *IbtReader
 }
 
 // Open the underlying ibt file for reading
 func (stub *Stub) Open() (err error) {
-	stub.r, err = NewMmapReader(stub.Filename())
+	stub.r, err = NewIbtReader(stub.Filename())
 	if err != nil {
 		return fmt.Errorf("failed to open stub file %s for reading: %v", stub.Filename(), err)
 	}

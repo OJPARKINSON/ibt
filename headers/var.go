@@ -2,10 +2,9 @@ package headers
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"unicode/utf8"
-
-	"github.com/teamjorge/ibt/utilities"
-	"golang.org/x/exp/maps"
 )
 
 const (
@@ -59,14 +58,14 @@ func ReadVarHeader(reader Reader, numVars, offset int) (map[string]VarHeader, er
 	start := 0
 	for i := 0; i < numVars; i++ {
 		h := VarHeader{
-			Rtype:       utilities.Byte4ToInt(varHeaderBuf[start+0 : start+4]),
-			Offset:      utilities.Byte4ToInt(varHeaderBuf[start+4 : start+8]),
-			Count:       utilities.Byte4ToInt(varHeaderBuf[start+8 : start+12]),
+			Rtype:       Byte4ToInt(varHeaderBuf[start+0 : start+4]),
+			Offset:      Byte4ToInt(varHeaderBuf[start+4 : start+8]),
+			Count:       Byte4ToInt(varHeaderBuf[start+8 : start+12]),
 			CountAsTime: int(varHeaderBuf[start+12]) > 0,
 			// Padded
-			Name:        utilities.BytesToString(varHeaderBuf[start+16 : start+48]),
-			Description: utilities.BytesToString(varHeaderBuf[start+48 : start+112]),
-			Unit:        utilities.BytesToString(varHeaderBuf[start+112 : start+144]),
+			Name:        BytesToString(varHeaderBuf[start+16 : start+48]),
+			Description: BytesToString(varHeaderBuf[start+48 : start+112]),
+			Unit:        BytesToString(varHeaderBuf[start+112 : start+144]),
 		}
 		start += VAR_HEADER_BYTES_SIZE
 
@@ -84,5 +83,5 @@ func ReadVarHeader(reader Reader, numVars, offset int) (map[string]VarHeader, er
 //
 // This is useful when determining which variables are available for a specific car.
 func AvailableVars(varHeaders map[string]VarHeader) []string {
-	return maps.Keys(varHeaders)
+	return slices.Collect(maps.Keys(varHeaders))
 }

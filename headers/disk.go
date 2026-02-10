@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"math"
 	"time"
-
-	"github.com/teamjorge/ibt/utilities"
 )
 
 const (
@@ -43,11 +41,11 @@ func ReadDiskHeader(reader Reader) (*DiskHeader, error) {
 	}
 
 	h := DiskHeader{
-		StartDate:   utilities.Byte8ToInt64(diskHeaderBuf[0:8]),
-		StartTime:   utilities.Byte8ToFloat(diskHeaderBuf[8:16]),
-		EndTime:     utilities.Byte8ToFloat(diskHeaderBuf[16:24]),
-		LapCount:    utilities.Byte4ToInt(diskHeaderBuf[24:28]),
-		RecordCount: utilities.Byte4ToInt(diskHeaderBuf[28:32]),
+		StartDate:   Byte8ToInt64(diskHeaderBuf[0:8]),
+		StartTime:   Byte8ToFloat(diskHeaderBuf[8:16]),
+		EndTime:     Byte8ToFloat(diskHeaderBuf[16:24]),
+		LapCount:    Byte4ToInt(diskHeaderBuf[24:28]),
+		RecordCount: Byte4ToInt(diskHeaderBuf[28:32]),
 	}
 
 	if h.EndTime < 0 || h.StartTime < 0 || h.EndTime > math.Pow(10, 20) || h.StartTime > math.Pow(10, 20) ||

@@ -14,15 +14,19 @@ type testProcessor struct {
 	whitelist []string
 }
 
+func (t *testProcessor) Init(*headers.Session) error {
+	return nil
+}
 func (t *testProcessor) Fields() interface{} {
 	return struct {
 		LapCurrentLapTime float64 `ibt:"LapCurrentLapTime"`
 	}{}
 }
 
-func (t *testProcessor) ProcessStruct(tick *TelemetryTick, hasNext bool, session *headers.Session) error {
-	t.results = append(t.results, tick)
-	t.session = session
+func (t *testProcessor) ProcessStruct(tick *TelemetryTick, hasNext bool) error {
+	// Copy the tick since the caller reuses it
+	cp := *tick
+	t.results = append(t.results, &cp)
 	return nil
 }
 
@@ -34,13 +38,15 @@ func (t *testProcessor) GetMetrics() interface{} { return nil }
 
 type testErrorProcessor struct{}
 
+func (t *testErrorProcessor) Init(*headers.Session) error { return nil }
+
 func (t *testErrorProcessor) Fields() interface{} {
 	return struct {
 		LapCurrentLapTime float64 `ibt:"LapCurrentLapTime"`
 	}{}
 }
 
-func (t *testErrorProcessor) ProcessStruct(tick *TelemetryTick, hasNext bool, session *headers.Session) error {
+func (t *testErrorProcessor) ProcessStruct(tick *TelemetryTick, hasNext bool) error {
 	return errors.New("unit test error")
 }
 
@@ -51,7 +57,7 @@ func (t *testErrorProcessor) Close() error { return nil }
 func (t *testErrorProcessor) GetMetrics() interface{} { return nil }
 
 func TestProcess(t *testing.T) {
-	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
+	reader, err := NewIbtReader(".testing/valid_test_file.ibt")
 	if err != nil {
 		t.Errorf("failed to open testing file - %v", err)
 		return
@@ -113,7 +119,7 @@ func TestProcess(t *testing.T) {
 		}
 	})
 
-	t.Run("test process() invalid file", func(t *testing.T) {
+	t.Run("test process() cancelled context", func(t *testing.T) {
 		proc := testProcessor{}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -126,7 +132,7 @@ func TestProcess(t *testing.T) {
 }
 
 func TestFieldsExtraction(t *testing.T) {
-	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
+	reader, err := NewIbtReader(".testing/valid_test_file.ibt")
 	if err != nil {
 		t.Errorf("failed to open testing file - %v", err)
 		return

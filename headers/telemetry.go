@@ -2,8 +2,6 @@ package headers
 
 import (
 	"fmt"
-
-	"github.com/teamjorge/ibt/utilities"
 )
 
 const (
@@ -50,17 +48,17 @@ func ReadTelemetryHeader(reader Reader) (*TelemetryHeader, error) {
 	}
 
 	h := TelemetryHeader{
-		Version:           utilities.Byte4ToInt(headerBuf[0:4]),
-		Status:            utilities.Byte4ToInt(headerBuf[4:8]),
-		TickRate:          utilities.Byte4ToInt(headerBuf[8:12]),
-		SessionInfoUpdate: utilities.Byte4ToInt(headerBuf[12:16]),
-		SessionInfoLength: utilities.Byte4ToInt(headerBuf[16:20]),
-		SessionInfoOffset: utilities.Byte4ToInt(headerBuf[20:24]),
-		NumVars:           utilities.Byte4ToInt(headerBuf[24:28]),
-		VarHeaderOffset:   utilities.Byte4ToInt(headerBuf[28:32]),
-		NumBuf:            utilities.Byte4ToInt(headerBuf[32:36]),
-		BufLen:            utilities.Byte4ToInt(headerBuf[36:40]),
-		BufOffset:         utilities.Byte4ToInt(headerBuf[52:56]),
+		Version:           Byte4ToInt(headerBuf[0:4]),
+		Status:            Byte4ToInt(headerBuf[4:8]),
+		TickRate:          Byte4ToInt(headerBuf[8:12]),
+		SessionInfoUpdate: Byte4ToInt(headerBuf[12:16]),
+		SessionInfoLength: Byte4ToInt(headerBuf[16:20]),
+		SessionInfoOffset: Byte4ToInt(headerBuf[20:24]),
+		NumVars:           Byte4ToInt(headerBuf[24:28]),
+		VarHeaderOffset:   Byte4ToInt(headerBuf[28:32]),
+		NumBuf:            Byte4ToInt(headerBuf[32:36]),
+		BufLen:            Byte4ToInt(headerBuf[36:40]),
+		BufOffset:         Byte4ToInt(headerBuf[52:56]),
 	}
 
 	if h.Version != 2 || h.Status < 0 || h.Status > 1 || h.TickRate < 60 || h.TickRate > 360 {

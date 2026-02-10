@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/OJPARKINSON/ibt/headers"
-	"github.com/OJPARKINSON/ibt/utilities"
 )
 
 // Processor processes telemetry data tick by tick.
@@ -30,20 +29,11 @@ import (
 //		return nil
 //	}
 type Processor interface {
-	// ProcessStruct is called for each tick of telemetry data
-	ProcessStruct(tick *TelemetryTick, hasNext bool, session *headers.Session) error
-
-	// Fields returns a struct with ibt tags defining required telemetry fields
-	// The whitelist is automatically extracted from these tags
+	Init(session *headers.Session) error
+	ProcessStruct(tick *TelemetryTick, hasNext bool) error
 	Fields() interface{}
-
-	// FlushPendingData flushes any cached data
 	FlushPendingData() error
-
-	// Close finalizes the processor
 	Close() error
-
-	// GetMetrics returns processor metrics for monitoring
 	GetMetrics() interface{}
 }
 
@@ -73,21 +63,31 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 	// Create struct parser (always uses struct-based parsing)
 	parser := NewStructParser(stub.r, header, whitelist...)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
+	tick := &TelemetryTick{}
+	tickCount := 0
 
-		tick, hasNext := parser.NextStruct()
+	for _, processor := range processors {
+		if err := processor.Init(header.SessionInfo); err != nil {
+			return err
+		}
+	}
+
+	for {
+		if tickCount&0x3FF == 0 {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+		}
+		tickCount++
+
+		tick, hasNext := parser.NextStruct(tick)
 		if tick == nil {
 			break
 		}
 
 		// Process all processors (single simple path - no legacy branching)
 		for _, processor := range processors {
-			if err := processor.ProcessStruct(tick, hasNext, header.SessionInfo); err != nil {
+			if err := processor.ProcessStruct(tick, hasNext); err != nil {
 				return err
 			}
 		}
@@ -118,5 +118,13 @@ func buildWhitelist(vars map[string]headers.VarHeader, processors ...Processor) 
 		}
 	}
 
-	return utilities.GetDistinct(whitelist)
+	seen := make(map[string]struct{}, len(whitelist))
+	distinct := make([]string, 0, len(whitelist))
+	for _, s := range whitelist {
+		if _, ok := seen[s]; !ok {
+			seen[s] = struct{}{}
+			distinct = append(distinct, s)
+		}
+	}
+	return distinct
 }

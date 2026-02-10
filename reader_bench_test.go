@@ -12,7 +12,7 @@ func BenchmarkMmapReaderCreation(b *testing.B) {
 	b.Run("NewMmapReader", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			reader, err := NewMmapReader(testFile)
+			reader, err := NewIbtReader(testFile)
 			if err != nil {
 				b.Fatalf("failed to create mmap reader: %v", err)
 			}
@@ -23,7 +23,7 @@ func BenchmarkMmapReaderCreation(b *testing.B) {
 
 // BenchmarkMmapReaderData measures the cost of accessing the entire mmap'd data
 func BenchmarkMmapReaderData(b *testing.B) {
-	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
+	reader, err := NewIbtReader(".testing/valid_test_file.ibt")
 	if err != nil {
 		b.Fatalf("failed to open testing file - %v", err)
 	}
@@ -42,7 +42,7 @@ func BenchmarkMmapReaderData(b *testing.B) {
 
 // BenchmarkMmapReaderRead measures the Read() method performance
 func BenchmarkMmapReaderRead(b *testing.B) {
-	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
+	reader, err := NewIbtReader(".testing/valid_test_file.ibt")
 	if err != nil {
 		b.Fatalf("failed to open testing file - %v", err)
 	}
@@ -65,7 +65,7 @@ func BenchmarkMmapReaderRead(b *testing.B) {
 
 // BenchmarkMmapReaderReadAt measures ReadAt() performance at various offsets
 func BenchmarkMmapReaderReadAt(b *testing.B) {
-	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
+	reader, err := NewIbtReader(".testing/valid_test_file.ibt")
 	if err != nil {
 		b.Fatalf("failed to open testing file - %v", err)
 	}
@@ -118,58 +118,37 @@ func BenchmarkMmapReaderReadAt(b *testing.B) {
 	})
 }
 
-// BenchmarkMmapReaderReadAtUnsafe measures zero-copy unsafe reads
-func BenchmarkMmapReaderReadAtUnsafe(b *testing.B) {
-	reader, err := NewMmapReader(".testing/valid_test_file.ibt")
-	if err != nil {
-		b.Fatalf("failed to open testing file - %v", err)
+// BenchmarkIbtReaderClose measures cleanup performance.
+// Pre-creates readers in setup to avoid StopTimer/StartTimer hang.
+func BenchmarkIbtReaderClose(b *testing.B) {
+	const batchSize = 256
+	readers := make([]*IbtReader, batchSize)
+	for i := range readers {
+		r, err := NewIbtReader(".testing/valid_test_file.ibt")
+		if err != nil {
+			b.Fatalf("failed to create reader: %v", err)
+		}
+		readers[i] = r
 	}
-	defer reader.Close()
 
-	b.Run("ReadAtUnsafe_4KB", func(b *testing.B) {
-		b.SetBytes(4096)
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			data := reader.ReadAtUnsafe(0, 4096)
-			if len(data) != 4096 {
-				b.Fatal("wrong size")
-			}
-		}
-	})
-
-	b.Run("ReadAtUnsafe_100KB", func(b *testing.B) {
-		size := 100 * 1024
-		b.SetBytes(int64(size))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			data := reader.ReadAtUnsafe(0, size)
-			if len(data) != size {
-				b.Fatal("wrong size")
-			}
-		}
-	})
-}
-
-// BenchmarkMmapReaderClose measures cleanup performance
-func BenchmarkMmapReaderClose(b *testing.B) {
-	b.Run("Close", func(b *testing.B) {
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			b.StopTimer()
-			reader, err := NewMmapReader(".testing/valid_test_file.ibt")
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		idx := i % batchSize
+		if readers[idx] == nil {
+			// Re-create if we've already closed this one
+			r, err := NewIbtReader(".testing/valid_test_file.ibt")
 			if err != nil {
 				b.Fatalf("failed to create reader: %v", err)
 			}
-			b.StartTimer()
-
-			err = reader.Close()
-			if err != nil {
-				b.Fatal(err)
-			}
+			readers[idx] = r
 		}
-	})
+		err := readers[idx].Close()
+		if err != nil {
+			b.Fatal(err)
+		}
+		readers[idx] = nil
+	}
 }
 
 // BenchmarkMmapReaderEmptyFile tests edge case performance
@@ -186,7 +165,7 @@ func BenchmarkMmapReaderEmptyFile(b *testing.B) {
 	b.Run("EmptyFile_creation", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			reader, err := NewMmapReader(emptyFile)
+			reader, err := NewIbtReader(emptyFile)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -195,14 +174,14 @@ func BenchmarkMmapReaderEmptyFile(b *testing.B) {
 	})
 }
 
-// BenchmarkMmapReaderVsOsRead compares mmap vs traditional file reading
-func BenchmarkMmapReaderVsOsRead(b *testing.B) {
+// BenchmarkIbtReaderVsOsRead compares IbtReader vs raw os.ReadFile for full-file reads.
+func BenchmarkIbtReaderVsOsRead(b *testing.B) {
 	testFile := ".testing/valid_test_file.ibt"
 
-	b.Run("MmapReader_sequential_read", func(b *testing.B) {
+	b.Run("IbtReader_sequential_read", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			reader, err := NewMmapReader(testFile)
+			reader, err := NewIbtReader(testFile)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -213,6 +192,7 @@ func BenchmarkMmapReaderVsOsRead(b *testing.B) {
 				sum += int(b)
 			}
 			reader.Close()
+			_ = sum
 		}
 	})
 

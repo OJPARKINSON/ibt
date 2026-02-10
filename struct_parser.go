@@ -3,12 +3,24 @@ package ibt
 import (
 	"encoding/binary"
 	"math"
-	"reflect"
 	"sync"
 	"time"
 
 	"github.com/OJPARKINSON/ibt/headers"
 )
+
+var globalFieldSetters map[string]fieldSetter
+var globalFieldSettersOnce sync.Once
+
+func getFieldSetters() map[string]fieldSetter {
+	globalFieldSettersOnce.Do(func() { globalFieldSetters = buildFieldSetters() })
+	return globalFieldSetters
+}
+
+type varSetter struct {
+	offset int
+	setter fieldSetter
+}
 
 // DirectStructParser reads telemetry bytes directly into TelemetryTick structs
 // without intermediate map allocations. This provides approximately 50-60%
@@ -19,88 +31,61 @@ import (
 //
 // This parser is safe for concurrent use when each goroutine has its own instance.
 type DirectStructParser struct {
-	// Core parser fields (copied from old Parser to avoid circular dependency)
-	reader     *MmapReader
-	whitelist  []string
+	reader     *IbtReader
 	header     *headers.Header
 	current    int
 	mmapData   []byte
-	varHeaders []headers.VarHeader
-	varNames   []string
+	varSetters []varSetter
+	maxOffset  int // pre-computed maximum byte offset needed by any setter
 
-	// DirectStructParser specific fields
-	fieldMap         map[string]fieldSetter
 	sessionStartTime time.Time
-
-	// Template cache for ToMapWithTemplate performance
-	// Maps reflect.Type to extracted whitelist (from ibt tags)
-	templateCache map[reflect.Type][]string
-	cacheMu       sync.RWMutex
 }
 
 // fieldSetter defines how to read a field from a buffer into a TelemetryTick
 type fieldSetter func(tick *TelemetryTick, buf []byte, offset int)
 
-// NewDirectStructParser creates a parser that reads directly into structs.
-//
-// Example usage:
-//
-//	parser := ibt.NewDirectStructParser(reader, header, "Speed", "RPM", "Gear")
-//	for {
-//		tick, hasNext := parser.NextStruct()
-//		if tick == nil {
-//			break
-//		}
-//		fmt.Printf("Speed: %.2f, RPM: %.2f, Gear: %d\n", tick.Speed, tick.RPM, tick.Gear)
-//		if !hasNext {
-//			break
-//		}
-//	}
-func NewDirectStructParser(reader *MmapReader, header *headers.Header, whitelist ...string) *DirectStructParser {
-	// Convert VarHeader map to slices for efficient iteration
-	var varHeaderMap map[string]headers.VarHeader
-	if header.VarHeader != nil {
-		varHeaderMap = header.VarHeader
-	} else {
+func NewDirectStructParser(reader *IbtReader, header *headers.Header, whitelist ...string) *DirectStructParser {
+	varHeaderMap := header.VarHeader
+	if varHeaderMap == nil {
 		varHeaderMap = make(map[string]headers.VarHeader)
 	}
 
-	varHeaders := make([]headers.VarHeader, 0, len(varHeaderMap))
-	varNames := make([]string, 0, len(varHeaderMap))
+	fieldSetters := getFieldSetters()
 
-	for name, vh := range varHeaderMap {
-		varHeaders = append(varHeaders, vh)
-		varNames = append(varNames, name)
+	// Build whitelist set for filtering
+	useWhitelist := len(whitelist) > 0 && !(len(whitelist) == 1 && whitelist[0] == "*")
+	var whitelistSet map[string]bool
+	if useWhitelist {
+		whitelistSet = make(map[string]bool, len(whitelist))
+		for _, name := range whitelist {
+			whitelistSet[name] = true
+		}
 	}
 
-	// Apply whitelist filtering if specified
-	if len(whitelist) > 0 && !(len(whitelist) == 1 && whitelist[0] == "*") {
-		whitelistMap := make(map[string]bool)
-		for _, name := range whitelist {
-			whitelistMap[name] = true
+	// Build pre-resolved varSetters slice: one entry per var that has a setter
+	setters := make([]varSetter, 0, len(varHeaderMap))
+	maxOffset := 0
+	for name, vh := range varHeaderMap {
+		if useWhitelist && !whitelistSet[name] {
+			continue
 		}
-
-		filteredHeaders := make([]headers.VarHeader, 0)
-		filteredNames := make([]string, 0)
-		for i, name := range varNames {
-			if whitelistMap[name] {
-				filteredHeaders = append(filteredHeaders, varHeaders[i])
-				filteredNames = append(filteredNames, name)
+		if setter, ok := fieldSetters[name]; ok {
+			setters = append(setters, varSetter{offset: vh.Offset, setter: setter})
+			// Track the highest byte offset needed.
+			// float64 fields read 8 bytes; all others read <=4.
+			// Use offset+8 as conservative upper bound for all types.
+			end := vh.Offset + 8
+			if end > maxOffset {
+				maxOffset = end
 			}
 		}
-		varHeaders = filteredHeaders
-		varNames = filteredNames
 	}
 
-	// Handle nil reader (used in some tests)
 	var mmapData []byte
 	if reader != nil {
 		mmapData = reader.Data()
 	}
 
-	// Calculate session start time from the file's start date
-	// This will be used to compute absolute timestamps for each tick
-	// Use zero time if DiskHeader is not available (some tests)
 	var sessionStartTime time.Time
 	if header.DiskHeader != nil {
 		sessionStartTime = time.Unix(header.DiskHeader.StartDate, 0)
@@ -108,15 +93,12 @@ func NewDirectStructParser(reader *MmapReader, header *headers.Header, whitelist
 
 	return &DirectStructParser{
 		reader:           reader,
-		whitelist:        whitelist,
 		header:           header,
 		current:          0,
 		mmapData:         mmapData,
-		varHeaders:       varHeaders,
-		varNames:         varNames,
-		fieldMap:         buildFieldSetters(),
+		varSetters:       setters,
+		maxOffset:        maxOffset,
 		sessionStartTime: sessionStartTime,
-		templateCache:    make(map[reflect.Type][]string),
 	}
 }
 
@@ -134,7 +116,7 @@ func (p *DirectStructParser) read(start int) []byte {
 
 // NextStruct reads the next telemetry tick directly into a struct.
 // Returns (nil, false) when end of file is reached.
-func (p *DirectStructParser) NextStruct() (*TelemetryTick, bool) {
+func (p *DirectStructParser) NextStruct(tick *TelemetryTick) (*TelemetryTick, bool) {
 	start := p.header.TelemetryHeader.BufOffset + (p.current * p.header.TelemetryHeader.BufLen)
 
 	currentBuf := p.read(start)
@@ -144,17 +126,18 @@ func (p *DirectStructParser) NextStruct() (*TelemetryTick, bool) {
 
 	// Check if more data available
 	nextStart := p.header.TelemetryHeader.BufOffset + ((p.current + 1) * p.header.TelemetryHeader.BufLen)
-	nextBuf := p.read(nextStart)
+	hasNext := nextStart+p.header.TelemetryHeader.BufLen <= len(p.mmapData)
 
-	// Create tick (TickTime will be calculated after SessionTime is populated)
-	tick := &TelemetryTick{}
+	// Single bounds check: all offsets were pre-validated at construction,
+	// so we only need to verify the buffer is large enough once.
+	if len(currentBuf) < p.maxOffset {
+		return nil, false
+	}
 
-	// Populate fields using pre-computed variable headers
-	for i, varHeader := range p.varHeaders {
-		fieldName := p.varNames[i]
-		if setter, exists := p.fieldMap[fieldName]; exists {
-			setter(tick, currentBuf, varHeader.Offset)
-		}
+	// Populate fields using pre-resolved setters (no map lookup per tick).
+	// Individual setters skip bounds checks since we validated above.
+	for _, vs := range p.varSetters {
+		vs.setter(tick, currentBuf, vs.offset)
 	}
 
 	// Calculate absolute timestamp: session start + elapsed session time
@@ -163,7 +146,7 @@ func (p *DirectStructParser) NextStruct() (*TelemetryTick, bool) {
 
 	p.current++
 
-	return tick, nextBuf != nil
+	return tick, hasNext
 }
 
 // buildFieldSetters creates the field mapping table using safe byte conversions.
@@ -419,141 +402,45 @@ func buildFieldSetters() map[string]fieldSetter {
 // These use safe byte conversions via encoding/binary, which modern Go compilers
 // optimize to the same assembly as unsafe pointer casts with zero performance cost.
 
-// setInt32 creates a setter for int32 fields
+// setInt32 creates a setter for int32 fields.
+// Bounds checking is done once in NextStruct() before the setter loop.
 func setInt32(assign func(*TelemetryTick, int32)) fieldSetter {
 	return func(tick *TelemetryTick, buf []byte, offset int) {
-		if offset+4 <= len(buf) {
-			val := int32(binary.LittleEndian.Uint32(buf[offset : offset+4]))
-			assign(tick, val)
-		}
+		val := int32(binary.LittleEndian.Uint32(buf[offset : offset+4]))
+		assign(tick, val)
 	}
 }
 
-// setUint32 creates a setter for uint32 fields
+// setUint32 creates a setter for uint32 fields.
 func setUint32(assign func(*TelemetryTick, uint32)) fieldSetter {
 	return func(tick *TelemetryTick, buf []byte, offset int) {
-		if offset+4 <= len(buf) {
-			val := binary.LittleEndian.Uint32(buf[offset : offset+4])
-			assign(tick, val)
-		}
+		val := binary.LittleEndian.Uint32(buf[offset : offset+4])
+		assign(tick, val)
 	}
 }
 
-// setFloat32AsFloat64 creates a setter for float32 fields stored as float64
+// setFloat32AsFloat64 creates a setter for float32 fields stored as float64.
 func setFloat32AsFloat64(assign func(*TelemetryTick, float64)) fieldSetter {
 	return func(tick *TelemetryTick, buf []byte, offset int) {
-		if offset+4 <= len(buf) {
-			bits := binary.LittleEndian.Uint32(buf[offset : offset+4])
-			val := float64(math.Float32frombits(bits))
-			assign(tick, val)
-		}
+		bits := binary.LittleEndian.Uint32(buf[offset : offset+4])
+		val := float64(math.Float32frombits(bits))
+		assign(tick, val)
 	}
 }
 
-// setFloat64 creates a setter for float64 fields
+// setFloat64 creates a setter for float64 fields.
 func setFloat64(assign func(*TelemetryTick, float64)) fieldSetter {
 	return func(tick *TelemetryTick, buf []byte, offset int) {
-		if offset+8 <= len(buf) {
-			bits := binary.LittleEndian.Uint64(buf[offset : offset+8])
-			val := math.Float64frombits(bits)
-			assign(tick, val)
-		}
+		bits := binary.LittleEndian.Uint64(buf[offset : offset+8])
+		val := math.Float64frombits(bits)
+		assign(tick, val)
 	}
 }
 
-// setBool creates a setter for bool fields
+// setBool creates a setter for bool fields.
 func setBool(assign func(*TelemetryTick, bool)) fieldSetter {
 	return func(tick *TelemetryTick, buf []byte, offset int) {
-		if offset+1 <= len(buf) {
-			val := buf[offset] != 0
-			assign(tick, val)
-		}
+		val := buf[offset] != 0
+		assign(tick, val)
 	}
-}
-
-// ToMapWithTemplate converts a TelemetryTick to a map using a cached struct template.
-// The template struct's ibt tags define which fields to extract.
-//
-// This method is optimized for high-frequency conversions with the same template type.
-// It caches the reflection results on the first call, making subsequent calls ~10x faster
-// than ToMapFromStruct().
-//
-// Thread-safety: This method uses a sync.RWMutex and is safe for concurrent use.
-//
-// Example - High-performance pattern (recommended):
-//
-//	type MyTelemetry struct {
-//	    Speed    float64 `ibt:"Speed"`
-//	    Gear     uint32  `ibt:"Gear"`
-//	    Throttle float64 `ibt:"Throttle"`
-//	}
-//
-//	parser := ibt.NewDirectStructParser(reader, header, "*")
-//	template := MyTelemetry{} // Define once
-//
-//	for {
-//	    tick, hasNext := parser.NextStruct()
-//	    if tick == nil {
-//	        break
-//	    }
-//	    data := parser.ToMapWithTemplate(tick, template) // Cached!
-//	    // Process data...
-//	    if !hasNext {
-//	        break
-//	    }
-//	}
-//
-// Performance:
-//   - First call: Reflection + cache store + map building = ~600ns
-//   - Subsequent calls: Cache lookup + map building = ~50ns overhead
-//   - 10x faster than ToMapFromStruct for repeated use
-//
-// Cache behavior:
-//   - Cache key is the reflect.Type of the template
-//   - Different template types get separate cache entries
-//   - Cache persists for the lifetime of the DirectStructParser
-func (p *DirectStructParser) ToMapWithTemplate(tick *TelemetryTick, template interface{}) Tick {
-	// Get the type of the template
-	typ := reflect.TypeOf(template)
-
-	// Dereference pointer if needed
-	if typ.Kind() == reflect.Ptr {
-		typ = typ.Elem()
-	}
-
-	// Fast path: Check if we have this template cached (read lock)
-	p.cacheMu.RLock()
-	whitelist, cached := p.templateCache[typ]
-	p.cacheMu.RUnlock()
-
-	if cached {
-		// Cache hit - use cached whitelist
-		return tick.ToMap(whitelist)
-	}
-
-	// Cache miss - build whitelist and cache it (write lock)
-	p.cacheMu.Lock()
-	// Double-check in case another goroutine just cached it
-	if whitelist, cached := p.templateCache[typ]; cached {
-		p.cacheMu.Unlock()
-		return tick.ToMap(whitelist)
-	}
-
-	// Build whitelist from struct tags
-	whitelist = BuildWhitelistFromStruct(template)
-
-	// Store in cache
-	p.templateCache[typ] = whitelist
-	p.cacheMu.Unlock()
-
-	return tick.ToMap(whitelist)
-}
-
-// ClearTemplateCache clears the template cache.
-// This is useful for testing or if you want to reclaim memory from cached templates.
-// In normal usage, you should not need to call this method.
-func (p *DirectStructParser) ClearTemplateCache() {
-	p.cacheMu.Lock()
-	defer p.cacheMu.Unlock()
-	p.templateCache = make(map[reflect.Type][]string)
 }

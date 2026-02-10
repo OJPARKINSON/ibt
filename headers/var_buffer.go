@@ -2,8 +2,6 @@ package headers
 
 import (
 	"fmt"
-
-	"github.com/teamjorge/ibt/utilities"
 )
 
 const (
@@ -27,8 +25,8 @@ func ReadVarBufferHeaders(r Reader, numBuf int) ([]VarBuffer, error) {
 			return nil, fmt.Errorf("failed to read VarBuffer header %d: %v", i, err)
 		}
 		currentVb := VarBuffer{
-			utilities.Byte4ToInt(rbuf[0:4]),
-			utilities.Byte4ToInt(rbuf[4:8]),
+			Byte4ToInt(rbuf[0:4]),
+			Byte4ToInt(rbuf[4:8]),
 		}
 
 		if currentVb.BufOffset == 0 || currentVb.TickCount == 0 {

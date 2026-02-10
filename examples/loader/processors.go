@@ -7,6 +7,8 @@ import (
 	"github.com/OJPARKINSON/ibt/headers"
 )
 
+func (l *loaderProcessor) Init(session *headers.Session) error { return nil }
+
 type loaderProcessor struct {
 	// Our storage client
 	*storage
@@ -42,7 +44,7 @@ func (l *loaderProcessor) Fields() interface{} {
 }
 
 // ProcessStruct processes a single tick of telemetry
-func (l *loaderProcessor) ProcessStruct(tick *ibt.TelemetryTick, hasNext bool, session *headers.Session) error {
+func (l *loaderProcessor) ProcessStruct(tick *ibt.TelemetryTick, hasNext bool) error {
 	// Set group number
 	tick.GroupNum = l.groupNumber
 

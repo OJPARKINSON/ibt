@@ -1,8 +1,7 @@
-package utilities
+package headers
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math"
 	"strings"
 )
@@ -29,11 +28,6 @@ func Byte4ToFloat(in []byte) float32 {
 func Byte8ToFloat(in []byte) float64 {
 	bits := binary.LittleEndian.Uint64(in)
 	return math.Float64frombits(bits)
-}
-
-// Byte4toBitField will convert the little endian 8 byte value into a bitfield string value
-func Byte4toBitField(in []byte) string {
-	return fmt.Sprintf("0x%x", int(binary.LittleEndian.Uint32(in)))
 }
 
 // BytesToString will convert the given bytes to string and remove any additional padding bytes
