@@ -268,7 +268,7 @@ type TelemetryTick struct {
 //  1. Building whitelists for parsers: NewDirectStructParser(reader, header, whitelist...)
 //  2. Creating type-safe processor whitelists
 //  3. Self-documenting field selection
-func BuildWhitelistFromStruct(template interface{}) []string {
+func BuildWhitelistFromStruct(template any) []string {
 	var typ reflect.Type
 
 	// Handle different input types
@@ -292,7 +292,7 @@ func BuildWhitelistFromStruct(template interface{}) []string {
 	whitelist := make([]string, 0, typ.NumField())
 
 	// Iterate through struct fields and extract ibt tags
-	for i := 0; i < typ.NumField(); i++ {
+	for i := range typ.NumField() {
 		field := typ.Field(i)
 
 		// Get the ibt tag value

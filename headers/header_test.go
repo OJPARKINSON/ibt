@@ -14,6 +14,7 @@ var expectedHeader = Header{
 	VarBuffers:      expectedVarBuffers,
 }
 
+//nolint:gocyclo // test function with many subtests
 func TestHeaders(t *testing.T) {
 	t.Run("valid header file", func(t *testing.T) {
 		f, err := os.Open("../.testing/valid_test_file.ibt")
@@ -21,7 +22,7 @@ func TestHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		output, err := ParseHeaders(f)
 		if err != nil {
@@ -56,7 +57,7 @@ func TestHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ParseHeaders(f)
 		if err == nil {
@@ -70,7 +71,7 @@ func TestHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ParseHeaders(f)
 		if err == nil {
@@ -84,7 +85,7 @@ func TestHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		mock, err := newMockReader(
 			f,
@@ -93,7 +94,7 @@ func TestHeaders(t *testing.T) {
 			8,
 		)
 		if err != nil {
-			t.Errorf("failed to initialize a test mockReader - %v", err)
+			t.Errorf("failed to initialise a test mockReader - %v", err)
 		}
 
 		h, err := ParseHeaders(mock)
@@ -113,7 +114,7 @@ func TestHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		mock, err := newMockReader(
 			f,
@@ -122,7 +123,7 @@ func TestHeaders(t *testing.T) {
 			TELEMETRY_HEADER_BYTES_SIZE+8,
 		)
 		if err != nil {
-			t.Errorf("failed to initialize a test mockReader - %v", err)
+			t.Errorf("failed to initialise a test mockReader - %v", err)
 		}
 
 		h, err := ParseHeaders(mock)
@@ -142,7 +143,7 @@ func TestHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		mock, err := newMockReader(
 			f,
@@ -151,7 +152,7 @@ func TestHeaders(t *testing.T) {
 			expectedTelemetryHeader.VarHeaderOffset+VAR_HEADER_BYTES_SIZE,
 		)
 		if err != nil {
-			t.Errorf("failed to initialize a test mockReader - %v", err)
+			t.Errorf("failed to initialise a test mockReader - %v", err)
 		}
 
 		h, err := ParseHeaders(mock)
@@ -171,7 +172,7 @@ func TestHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		mock, err := newMockReader(
 			f,
@@ -180,7 +181,7 @@ func TestHeaders(t *testing.T) {
 			VAR_BUFFER_HEADER_BASE_OFFSET+8,
 		)
 		if err != nil {
-			t.Errorf("failed to initialize a test mockReader - %v", err)
+			t.Errorf("failed to initialise a test mockReader - %v", err)
 		}
 
 		h, err := ParseHeaders(mock)
@@ -200,7 +201,7 @@ func TestHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		mock, err := newMockReader(
 			f,
@@ -209,7 +210,7 @@ func TestHeaders(t *testing.T) {
 			expectedTelemetryHeader.SessionInfoOffset+expectedTelemetryHeader.SessionInfoLength,
 		)
 		if err != nil {
-			t.Errorf("failed to initialize a test mockReader - %v", err)
+			t.Errorf("failed to initialise a test mockReader - %v", err)
 		}
 
 		h, err := ParseHeaders(mock)
@@ -231,7 +232,7 @@ func TestUpdateVarBuffer(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer validIbtFile.Close()
+		defer func() { _ = validIbtFile.Close() }()
 
 		output, err := ParseHeaders(validIbtFile)
 		if err != nil {
@@ -248,7 +249,7 @@ func TestUpdateVarBuffer(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer liveIbtFile.Close()
+		defer func() { _ = liveIbtFile.Close() }()
 
 		output.TelemetryHeader.NumBuf = 3
 
@@ -268,7 +269,7 @@ func TestUpdateVarBuffer(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		h := &Header{TelemetryHeader: &expectedTelemetryHeader}
 		if err := h.UpdateVarBuffer(f); err == nil {
@@ -286,7 +287,7 @@ func TestUpdateVarBuffer(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		h := &Header{TelemetryHeader: &expectedTelemetryHeader}
 		if err := h.UpdateVarBuffer(f); err == nil {

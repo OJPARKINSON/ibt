@@ -21,12 +21,12 @@ func main() {
 		log.Fatal(err)
 	}
 	// Close it when the application ends
-	defer storage.Close()
+	defer func() { _ = storage.Close() }()
 
 	// We group our stubs mainly to be able to identify the batches we are loading
 	// This might not be necessary on your use case
 	groups := stubs.Group()
-	defer ibt.CloseAllStubs(groups)
+	defer func() { _ = ibt.CloseAllStubs(groups) }()
 
 	for groupNumber, group := range groups {
 		// Create a new processor for this group and set the groupNumber.
@@ -35,12 +35,14 @@ func main() {
 
 		// Process the group using struct-based processing (faster than map-based)
 		if err := ibt.Process(context.Background(), group, processor); err != nil {
-			log.Fatalf("failed to process telemetry for stubs %v: %v", stubs, err)
+			log.Printf("failed to process telemetry for stubs %v: %v", stubs, err)
+			return
 		}
 
 		// Flush any remaining data
 		if err := processor.FlushPendingData(); err != nil {
-			log.Fatalf("failed to flush pending data: %v", err)
+			log.Printf("failed to flush pending data: %v", err)
+			return
 		}
 
 		// Print the number of batches loaded after each group

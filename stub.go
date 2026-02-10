@@ -20,17 +20,17 @@ type Stub struct {
 	r        *IbtReader
 }
 
-// Open the underlying ibt file for reading
+// Open the underlying ibt file for reading.
 func (stub *Stub) Open() (err error) {
 	stub.r, err = NewIbtReader(stub.Filename())
 	if err != nil {
-		return fmt.Errorf("failed to open stub file %s for reading: %v", stub.Filename(), err)
+		return fmt.Errorf("failed to open stub file %s for reading: %w", stub.Filename(), err)
 	}
 
 	return nil
 }
 
-// Close the stub reader
+// Close the stub reader.
 func (stub *Stub) Close() error {
 	if stub.r != nil {
 		if err := stub.r.Close(); err != nil {
@@ -40,13 +40,13 @@ func (stub *Stub) Close() error {
 	return nil
 }
 
-// Filename where the stub originated from
+// Filename where the stub originated from.
 func (stub *Stub) Filename() string { return stub.filepath }
 
-// Headers that were parsed when the stub was created
+// Headers that were parsed when the stub was created.
 func (stub *Stub) Headers() *headers.Header { return stub.header }
 
-// Time when the stub was created
+// Time when the stub was created.
 func (stub *Stub) Time() time.Time {
 	parsedTime := time.Unix(stub.header.DiskHeader.StartDate, 0)
 
@@ -66,7 +66,7 @@ func (stub *Stub) DriverIdx() int {
 // This group is not necessarily part of the same session, but can be grouped with Group().
 type StubGroup []Stub
 
-// Close the reader for every stub in the group
+// Close the reader for every stub in the group.
 func (sg StubGroup) Close() error {
 	errs := make([]error, 0)
 
@@ -90,7 +90,7 @@ func ParseStubs(files ...string) (StubGroup, error) {
 	for _, file := range files {
 		stub, err := parseStub(file)
 		if err != nil {
-			stubs.Close()
+			_ = stubs.Close()
 			return stubs, err
 		}
 
@@ -107,13 +107,13 @@ func parseStub(filename string) (Stub, error) {
 	// Open with os.File for header parsing (requires Read() method)
 	f, err := os.Open(filename)
 	if err != nil {
-		return stub, fmt.Errorf("failed to open file %s for reading: %v", filename, err)
+		return stub, fmt.Errorf("failed to open file %s for reading: %w", filename, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	header, err := headers.ParseHeaders(f)
 	if err != nil {
-		return stub, fmt.Errorf("failed to parse headers for file %s - %v", filename, err)
+		return stub, fmt.Errorf("failed to parse headers for file %s - %w", filename, err)
 	}
 
 	// Return stub with nil reader - Open() will create MmapReader later for telemetry reading

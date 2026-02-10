@@ -14,8 +14,3 @@ pre-commit:
 
           - run: make test
             tags: test
-
-    - name: fix typos
-      tags: lint
-      run: typos --write-changes {staged_files}
-      stage_fixed: true

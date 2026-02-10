@@ -20,14 +20,14 @@ func TestDiskHeaders(t *testing.T) {
 		t.Errorf("failed to open testing file - %v", err)
 		return
 	}
-	defer validF.Close()
+	defer func() { _ = validF.Close() }()
 
 	invalidF, err := os.Open("../.testing/invalid_test_file.ibt")
 	if err != nil {
 		t.Errorf("failed to open testing file - %v", err)
 		return
 	}
-	defer invalidF.Close()
+	defer func() { _ = invalidF.Close() }()
 
 	t.Run("valid header file", func(t *testing.T) {
 		// Read telemetry header to move buffer along
@@ -66,7 +66,7 @@ func TestDiskHeaders(t *testing.T) {
 			TELEMETRY_HEADER_BYTES_SIZE+8,
 		)
 		if err != nil {
-			t.Errorf("failed to initialize a test mockReader - %v", err)
+			t.Errorf("failed to initialise a test mockReader - %v", err)
 		}
 
 		_, err = ReadDiskHeader(mock)
@@ -86,7 +86,7 @@ func TestDiskHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ReadDiskHeader(f)
 

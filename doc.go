@@ -2,7 +2,7 @@
 //
 // The package uses direct byte-to-struct parsing for optimal performance,
 // with safe byte conversions via encoding/binary that modern Go compilers
-// optimize to the same assembly as unsafe pointer casts.
+// optimise to the same assembly as unsafe pointer casts.
 //
 // # Basic Usage
 //

@@ -27,7 +27,7 @@ func ReadSessionInfo(reader Reader, offset, size int) (*Session, error) {
 		return nil, err
 	}
 
-	rawYaml := strings.TrimRight(string(sessionBuf[:]), "\x00")
+	rawYaml := strings.TrimRight(string(sessionBuf), "\x00")
 	rawYaml = strings.TrimRight(rawYaml, ".")
 	rawYaml = strings.TrimSpace(rawYaml)
 
@@ -50,9 +50,9 @@ func ReadSessionInfo(reader Reader, offset, size int) (*Session, error) {
 func (s *Session) GetDriver() *Drivers {
 	idx := s.DriverInfo.DriverCarIdx
 
-	for _, driver := range s.DriverInfo.Drivers {
-		if driver.CarIdx == idx {
-			return &driver
+	for i := range s.DriverInfo.Drivers {
+		if s.DriverInfo.Drivers[i].CarIdx == idx {
+			return &s.DriverInfo.Drivers[i]
 		}
 	}
 
@@ -61,13 +61,13 @@ func (s *Session) GetDriver() *Drivers {
 
 // Session in which the ibt file occurred. This represents an actual iRacing session and not just information for a single ibt file.
 type Session struct {
-	CameraInfo    CameraInfo             `yaml:"CameraInfo"`
-	CarSetup      map[string]interface{} `yaml:"CarSetup"`
-	DriverInfo    DriverInfo             `yaml:"DriverInfo"`
-	RadioInfo     RadioInfo              `yaml:"RadioInfo"`
-	SessionInfo   SessionInfo            `yaml:"SessionInfo"`
-	SplitTimeInfo SplitTimeInfo          `yaml:"SplitTimeInfo"`
-	WeekendInfo   WeekendInfo            `yaml:"WeekendInfo"`
+	CameraInfo    CameraInfo     `yaml:"CameraInfo"`
+	CarSetup      map[string]any `yaml:"CarSetup"`
+	DriverInfo    DriverInfo     `yaml:"DriverInfo"`
+	RadioInfo     RadioInfo      `yaml:"RadioInfo"`
+	SessionInfo   SessionInfo    `yaml:"SessionInfo"`
+	SplitTimeInfo SplitTimeInfo  `yaml:"SplitTimeInfo"`
+	WeekendInfo   WeekendInfo    `yaml:"WeekendInfo"`
 }
 
 // Cameras available for the a given camera group.
@@ -93,46 +93,46 @@ type CameraInfo struct {
 
 // Drivers provides information on a driver present in the session.
 type Drivers struct {
-	AbbrevName              interface{} `yaml:"AbbrevName"`
-	CarClassColor           int         `yaml:"CarClassColor"`
-	CarClassDryTireSetLimit string      `yaml:"CarClassDryTireSetLimit"`
-	CarClassEstLapTime      float64     `yaml:"CarClassEstLapTime"`
-	CarClassID              int         `yaml:"CarClassID"`
-	CarClassLicenseLevel    int         `yaml:"CarClassLicenseLevel"`
-	CarClassMaxFuelPct      string      `yaml:"CarClassMaxFuelPct"`
-	CarClassPowerAdjust     string      `yaml:"CarClassPowerAdjust"`
-	CarClassRelSpeed        int         `yaml:"CarClassRelSpeed"`
-	CarClassShortName       interface{} `yaml:"CarClassShortName"`
-	CarClassWeightPenalty   string      `yaml:"CarClassWeightPenalty"`
-	CarDesignStr            string      `yaml:"CarDesignStr"`
-	CarID                   int         `yaml:"CarID"`
-	CarIdx                  int         `yaml:"CarIdx"`
-	CarIsAI                 int         `yaml:"CarIsAI"`
-	CarIsElectric           int         `yaml:"CarIsElectric"`
-	CarIsPaceCar            int         `yaml:"CarIsPaceCar"`
-	CarNumber               string      `yaml:"CarNumber"`
-	CarNumberDesignStr      string      `yaml:"CarNumberDesignStr"`
-	CarNumberRaw            int         `yaml:"CarNumberRaw"`
-	CarPath                 string      `yaml:"CarPath"`
-	CarScreenName           string      `yaml:"CarScreenName"`
-	CarScreenNameShort      string      `yaml:"CarScreenNameShort"`
-	CarSponsor1             int         `yaml:"CarSponsor_1"`
-	CarSponsor2             int         `yaml:"CarSponsor_2"`
-	CurDriverIncidentCount  int         `yaml:"CurDriverIncidentCount"`
-	HelmetDesignStr         string      `yaml:"HelmetDesignStr"`
-	IRating                 int         `yaml:"IRating"`
-	Initials                interface{} `yaml:"Initials"`
-	IsSpectator             int         `yaml:"IsSpectator"`
-	LicColor                string      `yaml:"LicColor"`
-	LicLevel                int         `yaml:"LicLevel"`
-	LicString               string      `yaml:"LicString"`
-	LicSubLevel             int         `yaml:"LicSubLevel"`
-	SuitDesignStr           string      `yaml:"SuitDesignStr"`
-	TeamID                  int         `yaml:"TeamID"`
-	TeamIncidentCount       int         `yaml:"TeamIncidentCount"`
-	TeamName                string      `yaml:"TeamName"`
-	UserID                  int         `yaml:"UserID"`
-	UserName                string      `yaml:"UserName"`
+	AbbrevName              any     `yaml:"AbbrevName"`
+	CarClassColor           int     `yaml:"CarClassColor"`
+	CarClassDryTireSetLimit string  `yaml:"CarClassDryTireSetLimit"`
+	CarClassEstLapTime      float64 `yaml:"CarClassEstLapTime"`
+	CarClassID              int     `yaml:"CarClassID"`
+	CarClassLicenseLevel    int     `yaml:"CarClassLicenseLevel"`
+	CarClassMaxFuelPct      string  `yaml:"CarClassMaxFuelPct"`
+	CarClassPowerAdjust     string  `yaml:"CarClassPowerAdjust"`
+	CarClassRelSpeed        int     `yaml:"CarClassRelSpeed"`
+	CarClassShortName       any     `yaml:"CarClassShortName"`
+	CarClassWeightPenalty   string  `yaml:"CarClassWeightPenalty"`
+	CarDesignStr            string  `yaml:"CarDesignStr"`
+	CarID                   int     `yaml:"CarID"`
+	CarIdx                  int     `yaml:"CarIdx"`
+	CarIsAI                 int     `yaml:"CarIsAI"`
+	CarIsElectric           int     `yaml:"CarIsElectric"`
+	CarIsPaceCar            int     `yaml:"CarIsPaceCar"`
+	CarNumber               string  `yaml:"CarNumber"`
+	CarNumberDesignStr      string  `yaml:"CarNumberDesignStr"`
+	CarNumberRaw            int     `yaml:"CarNumberRaw"`
+	CarPath                 string  `yaml:"CarPath"`
+	CarScreenName           string  `yaml:"CarScreenName"`
+	CarScreenNameShort      string  `yaml:"CarScreenNameShort"`
+	CarSponsor1             int     `yaml:"CarSponsor_1"`
+	CarSponsor2             int     `yaml:"CarSponsor_2"`
+	CurDriverIncidentCount  int     `yaml:"CurDriverIncidentCount"`
+	HelmetDesignStr         string  `yaml:"HelmetDesignStr"`
+	IRating                 int     `yaml:"IRating"`
+	Initials                any     `yaml:"Initials"`
+	IsSpectator             int     `yaml:"IsSpectator"`
+	LicColor                string  `yaml:"LicColor"`
+	LicLevel                int     `yaml:"LicLevel"`
+	LicString               string  `yaml:"LicString"`
+	LicSubLevel             int     `yaml:"LicSubLevel"`
+	SuitDesignStr           string  `yaml:"SuitDesignStr"`
+	TeamID                  int     `yaml:"TeamID"`
+	TeamIncidentCount       int     `yaml:"TeamIncidentCount"`
+	TeamName                string  `yaml:"TeamName"`
+	UserID                  int     `yaml:"UserID"`
+	UserName                string  `yaml:"UserName"`
 }
 
 // DriverInfo provides information regarding the driver in the car.
@@ -168,7 +168,7 @@ type DriverInfo struct {
 	PaceCarIdx                int       `yaml:"PaceCarIdx"`
 }
 
-// Frequencies provide information of of the given radio channel.
+// Frequencies provide information of the given radio channel.
 type Frequencies struct {
 	CanScan       int    `yaml:"CanScan"`
 	CanSquawk     int    `yaml:"CanSquawk"`
@@ -215,7 +215,7 @@ type Sessions struct {
 	ResultsNumCautionLaps            int                 `yaml:"ResultsNumCautionLaps"`
 	ResultsNumLeadChanges            int                 `yaml:"ResultsNumLeadChanges"`
 	ResultsOfficial                  int                 `yaml:"ResultsOfficial"`
-	ResultsPositions                 interface{}         `yaml:"ResultsPositions"`
+	ResultsPositions                 any                 `yaml:"ResultsPositions"`
 	SessionEnforceTireCompoundChange int                 `yaml:"SessionEnforceTireCompoundChange"`
 	SessionLaps                      string              `yaml:"SessionLaps"`
 	SessionName                      string              `yaml:"SessionName"`
@@ -223,7 +223,7 @@ type Sessions struct {
 	SessionNumLapsToAvg              int                 `yaml:"SessionNumLapsToAvg"`
 	SessionRunGroupsUsed             int                 `yaml:"SessionRunGroupsUsed"`
 	SessionSkipped                   int                 `yaml:"SessionSkipped"`
-	SessionSubType                   interface{}         `yaml:"SessionSubType"`
+	SessionSubType                   any                 `yaml:"SessionSubType"`
 	SessionTime                      string              `yaml:"SessionTime"`
 	SessionTrackRubberState          string              `yaml:"SessionTrackRubberState"`
 	SessionType                      string              `yaml:"SessionType"`

@@ -36,10 +36,10 @@ type VarHeader struct {
 	Unit string `json:"unit,omitempty"`
 
 	// Value of the variable. The is parsed during iteration of telemetry data.
-	Value interface{} `json:"value"`
+	Value any `json:"value"`
 }
 
-// ReadVarHeader populates the the VarHeader with the necessary metadata.
+// ReadVarHeader populates the VarHeader with the necessary metadata.
 //
 // This function will not populate the value field, but rather provides a template for retrieving values during
 // telemetry processing.
@@ -56,7 +56,7 @@ func ReadVarHeader(reader Reader, numVars, offset int) (map[string]VarHeader, er
 	varHeaders := make(map[string]VarHeader, 0)
 
 	start := 0
-	for i := 0; i < numVars; i++ {
+	for i := range numVars {
 		h := VarHeader{
 			Rtype:       Byte4ToInt(varHeaderBuf[start+0 : start+4]),
 			Offset:      Byte4ToInt(varHeaderBuf[start+4 : start+8]),
@@ -71,7 +71,7 @@ func ReadVarHeader(reader Reader, numVars, offset int) (map[string]VarHeader, er
 
 		varHeaders[h.Name] = h
 
-		if !utf8.Valid([]byte(h.Name)) {
+		if !utf8.ValidString(h.Name) {
 			return nil, fmt.Errorf("invalid vars detected at item %d. current var name: %s", i, h.Name)
 		}
 	}

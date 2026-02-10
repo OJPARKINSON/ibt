@@ -151,7 +151,7 @@ func TestParseCarSetup(t *testing.T) {
 		t.Errorf("failed to open testing file - %+v", err)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	header, err := headers.ParseHeaders(f)
 	if err != nil {
@@ -188,7 +188,7 @@ func TestStub_CarSetup(t *testing.T) {
 		t.Errorf("failed to open testing file - %+v", err)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	header, err := headers.ParseHeaders(f)
 	if err != nil {

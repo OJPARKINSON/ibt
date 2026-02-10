@@ -14,7 +14,7 @@ func TestVarHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		output, err := ReadVarHeader(f, expectedTelemetryHeader.NumVars, expectedTelemetryHeader.VarHeaderOffset)
 		if err != nil {
@@ -33,7 +33,7 @@ func TestVarHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ReadVarHeader(f, expectedTelemetryHeader.NumVars, expectedTelemetryHeader.VarHeaderOffset)
 		if err == nil {
@@ -47,7 +47,7 @@ func TestVarHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ReadVarHeader(f, expectedTelemetryHeader.NumVars, expectedTelemetryHeader.VarHeaderOffset)
 		if err == nil {
@@ -175,7 +175,7 @@ var expectedVarHeaders = map[string]VarHeader{
 		Offset:      1068,
 		Count:       1,
 		CountAsTime: false,
-		Description: "Center front splitter ride height",
+		Description: "Centre front splitter ride height",
 		Name:        "CFSRrideHeight",
 		Unit:        "m",
 		Value:       nil,
@@ -465,7 +465,7 @@ var expectedVarHeaders = map[string]VarHeader{
 		Offset:      916,
 		Count:       1,
 		CountAsTime: false,
-		Description: "Liters of fuel remaining",
+		Description: "Litres of fuel remaining",
 		Name:        "FuelLevel",
 		Unit:        "l",
 		Value:       nil,

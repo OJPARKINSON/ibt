@@ -10,7 +10,7 @@ const (
 	DISK_HEADER_BYTES_SIZE int = 32
 )
 
-// DiskHeader is the ibt file header indicating start, end, and amount of records
+// DiskHeader is the ibt file header indicating start, end, and amount of records.
 type DiskHeader struct {
 	// Unix timestamp indicating the start date and time of the file
 	StartDate int64
@@ -31,13 +31,13 @@ type DiskHeader struct {
 //
 //	_, err := reader.Seek(int64(TELEMETRY_HEADER_BYTES_SIZE), 0)
 //
-// Validation will be performed to ensure that the values are as expected
+// Validation will be performed to ensure that the values are as expected.
 func ReadDiskHeader(reader Reader) (*DiskHeader, error) {
 	diskHeaderBuf := make([]byte, DISK_HEADER_BYTES_SIZE)
 
 	_, err := reader.ReadAt(diskHeaderBuf, int64(TELEMETRY_HEADER_BYTES_SIZE))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read disk header buffer: %v", err)
+		return nil, fmt.Errorf("failed to read disk header buffer: %w", err)
 	}
 
 	h := DiskHeader{

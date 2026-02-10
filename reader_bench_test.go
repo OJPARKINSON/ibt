@@ -5,33 +5,35 @@ import (
 	"testing"
 )
 
-// BenchmarkMmapReaderCreation measures the cost of opening and mapping files
+const benchTestFile = ".testing/valid_test_file.ibt"
+
+// BenchmarkMmapReaderCreation measures the cost of opening and mapping files.
 func BenchmarkMmapReaderCreation(b *testing.B) {
-	testFile := ".testing/valid_test_file.ibt"
+	testFile := benchTestFile
 
 	b.Run("NewMmapReader", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			reader, err := NewIbtReader(testFile)
 			if err != nil {
 				b.Fatalf("failed to create mmap reader: %v", err)
 			}
-			reader.Close()
+			_ = reader.Close()
 		}
 	})
 }
 
-// BenchmarkMmapReaderData measures the cost of accessing the entire mmap'd data
+// BenchmarkMmapReaderData measures the cost of accessing the entire mmap'd data.
 func BenchmarkMmapReaderData(b *testing.B) {
-	reader, err := NewIbtReader(".testing/valid_test_file.ibt")
+	reader, err := NewIbtReader(benchTestFile)
 	if err != nil {
 		b.Fatalf("failed to open testing file - %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	b.Run("Data_access", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			data := reader.Data()
 			if len(data) == 0 {
 				b.Fatal("empty data")
@@ -40,13 +42,13 @@ func BenchmarkMmapReaderData(b *testing.B) {
 	})
 }
 
-// BenchmarkMmapReaderRead measures the Read() method performance
+// BenchmarkMmapReaderRead measures the Read() method performance.
 func BenchmarkMmapReaderRead(b *testing.B) {
-	reader, err := NewIbtReader(".testing/valid_test_file.ibt")
+	reader, err := NewIbtReader(benchTestFile)
 	if err != nil {
 		b.Fatalf("failed to open testing file - %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	buf := make([]byte, 4096)
 
@@ -54,7 +56,7 @@ func BenchmarkMmapReaderRead(b *testing.B) {
 		b.SetBytes(4096)
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := reader.Read(buf)
 			if err != nil {
 				b.Fatal(err)
@@ -63,13 +65,13 @@ func BenchmarkMmapReaderRead(b *testing.B) {
 	})
 }
 
-// BenchmarkMmapReaderReadAt measures ReadAt() performance at various offsets
+// BenchmarkMmapReaderReadAt measures ReadAt() performance at various offsets.
 func BenchmarkMmapReaderReadAt(b *testing.B) {
-	reader, err := NewIbtReader(".testing/valid_test_file.ibt")
+	reader, err := NewIbtReader(benchTestFile)
 	if err != nil {
 		b.Fatalf("failed to open testing file - %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	buf := make([]byte, 1024)
 	data := reader.Data()
@@ -79,7 +81,7 @@ func BenchmarkMmapReaderReadAt(b *testing.B) {
 		b.SetBytes(1024)
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := reader.ReadAt(buf, 0)
 			if err != nil {
 				b.Fatal(err)
@@ -92,7 +94,7 @@ func BenchmarkMmapReaderReadAt(b *testing.B) {
 		b.SetBytes(1024)
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err := reader.ReadAt(buf, offset)
 			if err != nil {
 				b.Fatal(err)
@@ -108,7 +110,7 @@ func BenchmarkMmapReaderReadAt(b *testing.B) {
 		b.SetBytes(1024)
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for i := range b.N {
 			offset := offsets[i%len(offsets)]
 			_, err := reader.ReadAt(buf, offset)
 			if err != nil {
@@ -124,7 +126,7 @@ func BenchmarkIbtReaderClose(b *testing.B) {
 	const batchSize = 256
 	readers := make([]*IbtReader, batchSize)
 	for i := range readers {
-		r, err := NewIbtReader(".testing/valid_test_file.ibt")
+		r, err := NewIbtReader(benchTestFile)
 		if err != nil {
 			b.Fatalf("failed to create reader: %v", err)
 		}
@@ -132,12 +134,12 @@ func BenchmarkIbtReaderClose(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for i := 0; b.Loop(); i++ {
 		idx := i % batchSize
 		if readers[idx] == nil {
 			// Re-create if we've already closed this one
-			r, err := NewIbtReader(".testing/valid_test_file.ibt")
+			r, err := NewIbtReader(benchTestFile)
 			if err != nil {
 				b.Fatalf("failed to create reader: %v", err)
 			}
@@ -151,7 +153,7 @@ func BenchmarkIbtReaderClose(b *testing.B) {
 	}
 }
 
-// BenchmarkMmapReaderEmptyFile tests edge case performance
+// BenchmarkMmapReaderEmptyFile tests edge case performance.
 func BenchmarkMmapReaderEmptyFile(b *testing.B) {
 	// Create empty test file
 	emptyFile := ".testing/empty_bench.ibt"
@@ -159,28 +161,28 @@ func BenchmarkMmapReaderEmptyFile(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	f.Close()
-	defer os.Remove(emptyFile)
+	_ = f.Close()
+	defer func() { _ = os.Remove(emptyFile) }()
 
 	b.Run("EmptyFile_creation", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			reader, err := NewIbtReader(emptyFile)
 			if err != nil {
 				b.Fatal(err)
 			}
-			reader.Close()
+			_ = reader.Close()
 		}
 	})
 }
 
 // BenchmarkIbtReaderVsOsRead compares IbtReader vs raw os.ReadFile for full-file reads.
 func BenchmarkIbtReaderVsOsRead(b *testing.B) {
-	testFile := ".testing/valid_test_file.ibt"
+	testFile := benchTestFile
 
 	b.Run("IbtReader_sequential_read", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			reader, err := NewIbtReader(testFile)
 			if err != nil {
 				b.Fatal(err)
@@ -191,14 +193,14 @@ func BenchmarkIbtReaderVsOsRead(b *testing.B) {
 			for _, b := range data {
 				sum += int(b)
 			}
-			reader.Close()
+			_ = reader.Close()
 			_ = sum
 		}
 	})
 
 	b.Run("os.ReadFile_sequential_read", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			data, err := os.ReadFile(testFile)
 			if err != nil {
 				b.Fatal(err)

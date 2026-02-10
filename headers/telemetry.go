@@ -38,7 +38,7 @@ type TelemetryHeader struct {
 
 // ReadTelemetryHeader attempts to parse the TelemetryHeader from the given Reader (a loaded .ibt file)
 //
-// Validation will be performed to ensure that the values are as expected
+// Validation will be performed to ensure that the values are as expected.
 func ReadTelemetryHeader(reader Reader) (*TelemetryHeader, error) {
 	headerBuf := make([]byte, TELEMETRY_HEADER_BYTES_SIZE)
 

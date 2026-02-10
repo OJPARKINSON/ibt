@@ -18,7 +18,7 @@ func main() {
 	// We group the stubs by iRacing session. This allows us to summarise results for
 	// an entire session, instead of just a single ibt file.
 	groups := stubs.Group()
-	defer ibt.CloseAllStubs(groups)
+	defer func() { _ = ibt.CloseAllStubs(groups) }()
 
 	for groupIdx, group := range groups {
 		// Create the instance(s) of your processor(s) for this group
@@ -28,7 +28,8 @@ func main() {
 		// This is currently only utilising the Track Temp processor,
 		// but can include as many as you want.
 		if err := ibt.Process(context.Background(), group, processor); err != nil {
-			log.Fatalf("failed to process telemetry for group %d: %v", groupIdx, err)
+			log.Printf("failed to process telemetry for group %d: %v", groupIdx, err)
+			return
 		}
 
 		// Print the summarised track temperature

@@ -19,7 +19,7 @@ type loaderProcessor struct {
 	threshold   int
 }
 
-// Simple Constructor for creating our processor
+// Simple Constructor for creating our processor.
 func newLoaderProcessor(storage *storage, groupNumber int, threshold int) *loaderProcessor {
 	return &loaderProcessor{
 		storage:     storage,
@@ -31,7 +31,7 @@ func newLoaderProcessor(storage *storage, groupNumber int, threshold int) *loade
 
 // Fields defines the telemetry fields this processor needs.
 // Whitelist is automatically extracted from ibt tags.
-func (l *loaderProcessor) Fields() interface{} {
+func (l *loaderProcessor) Fields() any {
 	return struct {
 		LapID       int32   `ibt:"Lap"`
 		ThrottleRaw float64 `ibt:"ThrottleRaw"`
@@ -43,7 +43,7 @@ func (l *loaderProcessor) Fields() interface{} {
 	}{}
 }
 
-// ProcessStruct processes a single tick of telemetry
+// ProcessStruct processes a single tick of telemetry.
 func (l *loaderProcessor) ProcessStruct(tick *ibt.TelemetryTick, hasNext bool) error {
 	// Set group number
 	tick.GroupNum = l.groupNumber
@@ -54,7 +54,7 @@ func (l *loaderProcessor) ProcessStruct(tick *ibt.TelemetryTick, hasNext bool) e
 	// If cache is past threshold, bulk load
 	if len(l.cache) >= l.threshold {
 		if err := l.loadBatch(); err != nil {
-			return fmt.Errorf("failed to load batch - %v", err)
+			return fmt.Errorf("failed to load batch - %w", err)
 		}
 		// Reset cache
 		l.cache = l.cache[:0]
@@ -63,7 +63,7 @@ func (l *loaderProcessor) ProcessStruct(tick *ibt.TelemetryTick, hasNext bool) e
 	return nil
 }
 
-// FlushPendingData flushes any remaining cached data
+// FlushPendingData flushes any remaining cached data.
 func (l *loaderProcessor) FlushPendingData() error {
 	if len(l.cache) > 0 {
 		return l.loadBatch()
@@ -71,15 +71,15 @@ func (l *loaderProcessor) FlushPendingData() error {
 	return nil
 }
 
-// Close finalizes the processor
+// Close finalises the processor.
 func (l *loaderProcessor) Close() error {
 	return l.FlushPendingData()
 }
 
-// GetMetrics returns processor metrics
-func (l *loaderProcessor) GetMetrics() interface{} {
-	return map[string]interface{}{
-		"batches_loaded": l.storage.Loaded(),
+// GetMetrics returns processor metrics.
+func (l *loaderProcessor) GetMetrics() any {
+	return map[string]any{
+		"batches_loaded": l.Loaded(),
 		"cache_size":     len(l.cache),
 	}
 }

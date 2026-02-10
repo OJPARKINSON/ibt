@@ -19,7 +19,7 @@ func NewIbtReader(filename string) (*IbtReader, error) {
 	return &IbtReader{data: data}, nil
 }
 
-// Read implements the io.Reader interface
+// Read implements the io.Reader interface.
 func (m *IbtReader) Read(p []byte) (int, error) {
 	// For header parsing compatibility - reads from beginning
 	if len(m.data) == 0 {
@@ -32,7 +32,7 @@ func (m *IbtReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-// ReadAt implements the io.ReaderAt interface with zero-copy reads
+// ReadAt implements the io.ReaderAt interface with zero-copy reads.
 func (m *IbtReader) ReadAt(p []byte, off int64) (int, error) {
 	if off < 0 || off >= int64(len(m.data)) {
 		return 0, io.EOF

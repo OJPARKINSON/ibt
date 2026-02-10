@@ -9,15 +9,14 @@ import (
 )
 
 type testProcessor struct {
-	results   []*TelemetryTick
-	session   *headers.Session
-	whitelist []string
+	results []*TelemetryTick
 }
 
 func (t *testProcessor) Init(*headers.Session) error {
 	return nil
 }
-func (t *testProcessor) Fields() interface{} {
+
+func (t *testProcessor) Fields() any {
 	return struct {
 		LapCurrentLapTime float64 `ibt:"LapCurrentLapTime"`
 	}{}
@@ -34,13 +33,13 @@ func (t *testProcessor) FlushPendingData() error { return nil }
 
 func (t *testProcessor) Close() error { return nil }
 
-func (t *testProcessor) GetMetrics() interface{} { return nil }
+func (t *testProcessor) GetMetrics() any { return nil }
 
 type testErrorProcessor struct{}
 
 func (t *testErrorProcessor) Init(*headers.Session) error { return nil }
 
-func (t *testErrorProcessor) Fields() interface{} {
+func (t *testErrorProcessor) Fields() any {
 	return struct {
 		LapCurrentLapTime float64 `ibt:"LapCurrentLapTime"`
 	}{}
@@ -54,7 +53,7 @@ func (t *testErrorProcessor) FlushPendingData() error { return nil }
 
 func (t *testErrorProcessor) Close() error { return nil }
 
-func (t *testErrorProcessor) GetMetrics() interface{} { return nil }
+func (t *testErrorProcessor) GetMetrics() any { return nil }
 
 func TestProcess(t *testing.T) {
 	reader, err := NewIbtReader(".testing/valid_test_file.ibt")
@@ -62,7 +61,7 @@ func TestProcess(t *testing.T) {
 		t.Errorf("failed to open testing file - %v", err)
 		return
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	testHeaders, err := headers.ParseHeaders(reader)
 	if err != nil {
@@ -119,7 +118,7 @@ func TestProcess(t *testing.T) {
 		}
 	})
 
-	t.Run("test process() cancelled context", func(t *testing.T) {
+	t.Run("test process() canceled context", func(t *testing.T) {
 		proc := testProcessor{}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -137,7 +136,7 @@ func TestFieldsExtraction(t *testing.T) {
 		t.Errorf("failed to open testing file - %v", err)
 		return
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	testHeaders, err := headers.ParseHeaders(reader)
 	if err != nil {

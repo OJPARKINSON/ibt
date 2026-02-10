@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/OJPARKINSON/ibt"
 )
@@ -19,12 +19,12 @@ type DashboardData struct {
 
 func main() {
 	// Build a whitelist from struct tags (type-safe!)
-	fmt.Println("=== BuildWhitelistFromStruct ===")
+	log.Println("=== BuildWhitelistFromStruct ===")
 	whitelist := ibt.BuildWhitelistFromStruct(DashboardData{})
-	fmt.Printf("Whitelist: %v\n\n", whitelist)
+	log.Printf("Whitelist: %v\n\n", whitelist)
 
 	// Access fields directly on TelemetryTick (no map needed)
-	fmt.Println("=== Direct Struct Field Access ===")
+	log.Println("=== Direct Struct Field Access ===")
 	tick := &ibt.TelemetryTick{
 		Speed:    123.45,
 		RPM:      5500.0,
@@ -33,17 +33,17 @@ func main() {
 		Brake:    0.0,
 		LapID:    5,
 	}
-	fmt.Printf("Speed: %.2f, RPM: %.0f, Gear: %d, Throttle: %.2f\n",
+	log.Printf("Speed: %.2f, RPM: %.0f, Gear: %d, Throttle: %.2f\n",
 		tick.Speed, tick.RPM, tick.Gear, tick.Throttle)
 
 	// Processor API with auto-whitelist
-	fmt.Println("\n=== Processor API ===")
-	fmt.Println("Implement Fields() to auto-extract whitelist:")
-	fmt.Println("")
-	fmt.Println("  func (p *MyProcessor) Fields() interface{} {")
-	fmt.Println("      return struct {")
-	fmt.Println("          Speed float64 `ibt:\"Speed\"`")
-	fmt.Println("          RPM   float64 `ibt:\"RPM\"`")
-	fmt.Println("      }{}")
-	fmt.Println("  }")
+	log.Println("\n=== Processor API ===")
+	log.Println("Implement Fields() to auto-extract whitelist:")
+	log.Println("")
+	log.Println("  func (p *MyProcessor) Fields() interface{} {")
+	log.Println("      return struct {")
+	log.Println("          Speed float64 `ibt:\"Speed\"`")
+	log.Println("          RPM   float64 `ibt:\"RPM\"`")
+	log.Println("      }{}")
+	log.Println("  }")
 }

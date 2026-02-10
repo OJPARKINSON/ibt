@@ -31,10 +31,10 @@ import (
 type Processor interface {
 	Init(session *headers.Session) error
 	ProcessStruct(tick *TelemetryTick, hasNext bool) error
-	Fields() interface{}
+	Fields() any
 	FlushPendingData() error
 	Close() error
-	GetMetrics() interface{}
+	GetMetrics() any
 }
 
 func Process(ctx context.Context, stubs StubGroup, processors ...Processor) error {
@@ -63,7 +63,7 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 	// Create struct parser (always uses struct-based parsing)
 	parser := NewStructParser(stub.r, header, whitelist...)
 
-	tick := &TelemetryTick{}
+	originalTick := &TelemetryTick{}
 	tickCount := 0
 
 	for _, processor := range processors {
@@ -80,7 +80,7 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 		}
 		tickCount++
 
-		tick, hasNext := parser.NextStruct(tick)
+		tick, hasNext := parser.NextStruct(originalTick)
 		if tick == nil {
 			break
 		}

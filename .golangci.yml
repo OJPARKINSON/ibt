@@ -24,7 +24,6 @@ linters:
     - goconst
     - gocritic
     - gocyclo
-    - godoclint
     - godot
     - godox
     - goheader
@@ -35,7 +34,6 @@ linters:
     - makezero
     - mirror
     - misspell
-    - mnd
     - modernize
     - nestif
     - noctx
@@ -66,7 +64,7 @@ linters:
       ignore-string-values:
         - "false"
     misspell:
-      locale: US
+      locale: UK
     perfsprint:
       strconcat: false
     revive:

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Test struct templates
+// Test struct templates.
 type BasicTelemetry struct {
 	Speed float64 `ibt:"Speed"`
 	Gear  uint32  `ibt:"Gear"`
@@ -36,7 +36,7 @@ type MixedTemplate struct {
 func TestBuildWhitelistFromStruct(t *testing.T) {
 	tests := []struct {
 		name     string
-		template interface{}
+		template any
 		expected []string
 	}{
 		{
@@ -66,7 +66,7 @@ func TestBuildWhitelistFromStruct(t *testing.T) {
 		},
 		{
 			name:     "reflect.Type",
-			template: reflect.TypeOf(BasicTelemetry{}),
+			template: reflect.TypeFor[BasicTelemetry](),
 			expected: []string{"Speed", "Gear", "RPM"},
 		},
 	}
@@ -110,8 +110,7 @@ func TestBuildWhitelistFromStruct_EdgeCases(t *testing.T) {
 func BenchmarkBuildWhitelistFromStruct(b *testing.B) {
 	template := BasicTelemetry{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = BuildWhitelistFromStruct(template)
 	}
 }
@@ -119,8 +118,7 @@ func BenchmarkBuildWhitelistFromStruct(b *testing.B) {
 func BenchmarkBuildWhitelistFromStruct_Extended(b *testing.B) {
 	template := ExtendedTelemetry{}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = BuildWhitelistFromStruct(template)
 	}
 }

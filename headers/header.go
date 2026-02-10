@@ -15,27 +15,27 @@ type Header struct {
 func ParseHeaders(r Reader) (*Header, error) {
 	telemHeader, err := ReadTelemetryHeader(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse telemetry header: %v", err)
+		return nil, fmt.Errorf("failed to parse telemetry header: %w", err)
 	}
 
 	diskHeader, err := ReadDiskHeader(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse disk header: %v", err)
+		return nil, fmt.Errorf("failed to parse disk header: %w", err)
 	}
 
 	varHeader, err := ReadVarHeader(r, telemHeader.NumVars, telemHeader.VarHeaderOffset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse variable header: %v", err)
+		return nil, fmt.Errorf("failed to parse variable header: %w", err)
 	}
 
 	varBuffers, err := ReadVarBufferHeaders(r, telemHeader.NumBuf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse var buffer header: %v", err)
+		return nil, fmt.Errorf("failed to parse var buffer header: %w", err)
 	}
 
 	sessionInfo, err := ReadSessionInfo(r, telemHeader.SessionInfoOffset, telemHeader.SessionInfoLength)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse session info: %v", err)
+		return nil, fmt.Errorf("failed to parse session info: %w", err)
 	}
 
 	return &Header{
@@ -50,7 +50,7 @@ func ParseHeaders(r Reader) (*Header, error) {
 func (h *Header) UpdateVarBuffer(r Reader) error {
 	varBuffers, err := ReadVarBufferHeaders(r, h.TelemetryHeader.NumBuf)
 	if err != nil {
-		return fmt.Errorf("failed to parse var buffer header: %v", err)
+		return fmt.Errorf("failed to parse var buffer header: %w", err)
 	}
 
 	h.VarBuffers = varBuffers

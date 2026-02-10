@@ -18,12 +18,12 @@ func setupBenchParser(b *testing.B, whitelist ...string) (*DirectStructParser, f
 
 	header, err := headers.ParseHeaders(reader)
 	if err != nil {
-		reader.Close()
+		_ = reader.Close()
 		b.Fatalf("failed to parse headers: %v", err)
 	}
 
 	parser := NewDirectStructParser(reader, header, whitelist...)
-	cleanup := func() { reader.Close() }
+	cleanup := func() { _ = reader.Close() }
 	return parser, cleanup
 }
 
@@ -42,7 +42,7 @@ func BenchmarkNextStruct(b *testing.B) {
 		tick := &TelemetryTick{}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, hasNext := parser.NextStruct(tick)
 			if !hasNext {
 				// Reset to beginning for continuous benchmarking
@@ -58,7 +58,7 @@ func BenchmarkNextStruct(b *testing.B) {
 		tick := &TelemetryTick{}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, hasNext := parser.NextStruct(tick)
 			if !hasNext {
 				parser.current = 0
@@ -74,7 +74,7 @@ func BenchmarkNextStruct(b *testing.B) {
 		tick := &TelemetryTick{}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			*tick = TelemetryTick{} // zero out without allocating
 			_, hasNext := parser.NextStruct(tick)
 			if !hasNext {
@@ -90,7 +90,7 @@ func BenchmarkNewDirectStructParser(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to open test file: %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	header, err := headers.ParseHeaders(reader)
 	if err != nil {
@@ -103,7 +103,7 @@ func BenchmarkNewDirectStructParser(b *testing.B) {
 	b.Run("no_whitelist", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = NewDirectStructParser(reader, header)
 		}
 	})
@@ -111,7 +111,7 @@ func BenchmarkNewDirectStructParser(b *testing.B) {
 	b.Run("with_whitelist_10", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = NewDirectStructParser(reader, header, smallWhitelist...)
 		}
 	})
@@ -123,7 +123,7 @@ func BenchmarkEndToEnd(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to open test file: %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	header, err := headers.ParseHeaders(reader)
 	if err != nil {
@@ -148,7 +148,7 @@ func BenchmarkEndToEnd(b *testing.B) {
 		b.SetBytes(dataSize)
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			parser := NewDirectStructParser(reader, header)
 			t := &TelemetryTick{}
 			for {
@@ -164,7 +164,7 @@ func BenchmarkEndToEnd(b *testing.B) {
 		b.SetBytes(dataSize)
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			parser := NewDirectStructParser(reader, header, smallWhitelist...)
 			t := &TelemetryTick{}
 			for {

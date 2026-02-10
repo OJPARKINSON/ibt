@@ -9,8 +9,10 @@ import (
 	"github.com/OJPARKINSON/ibt/headers"
 )
 
-var globalFieldSetters map[string]fieldSetter
-var globalFieldSettersOnce sync.Once
+var (
+	globalFieldSetters     map[string]fieldSetter
+	globalFieldSettersOnce sync.Once
+)
 
 func getFieldSetters() map[string]fieldSetter {
 	globalFieldSettersOnce.Do(func() { globalFieldSetters = buildFieldSetters() })
@@ -27,11 +29,10 @@ type varSetter struct {
 // performance improvement over map-based parsing.
 //
 // The parser uses safe byte conversions via encoding/binary, which modern
-// Go compilers optimize to the same assembly as unsafe pointer casts.
+// Go compilers optimise to the same assembly as unsafe pointer casts.
 //
 // This parser is safe for concurrent use when each goroutine has its own instance.
 type DirectStructParser struct {
-	reader     *IbtReader
 	header     *headers.Header
 	current    int
 	mmapData   []byte
@@ -41,7 +42,7 @@ type DirectStructParser struct {
 	sessionStartTime time.Time
 }
 
-// fieldSetter defines how to read a field from a buffer into a TelemetryTick
+// fieldSetter defines how to read a field from a buffer into a TelemetryTick.
 type fieldSetter func(tick *TelemetryTick, buf []byte, offset int)
 
 func NewDirectStructParser(reader *IbtReader, header *headers.Header, whitelist ...string) *DirectStructParser {
@@ -53,7 +54,7 @@ func NewDirectStructParser(reader *IbtReader, header *headers.Header, whitelist 
 	fieldSetters := getFieldSetters()
 
 	// Build whitelist set for filtering
-	useWhitelist := len(whitelist) > 0 && !(len(whitelist) == 1 && whitelist[0] == "*")
+	useWhitelist := len(whitelist) > 0 && (len(whitelist) != 1 || whitelist[0] != "*")
 	var whitelistSet map[string]bool
 	if useWhitelist {
 		whitelistSet = make(map[string]bool, len(whitelist))
@@ -92,7 +93,6 @@ func NewDirectStructParser(reader *IbtReader, header *headers.Header, whitelist 
 	}
 
 	return &DirectStructParser{
-		reader:           reader,
 		header:           header,
 		current:          0,
 		mmapData:         mmapData,
@@ -102,7 +102,7 @@ func NewDirectStructParser(reader *IbtReader, header *headers.Header, whitelist 
 	}
 }
 
-// read returns a buffer at the given offset
+// read returns a buffer at the given offset.
 func (p *DirectStructParser) read(start int) []byte {
 	bufLen := p.header.TelemetryHeader.BufLen
 	end := start + bufLen
@@ -400,7 +400,7 @@ func buildFieldSetters() map[string]fieldSetter {
 
 // Helper functions to create field setters with proper type conversions.
 // These use safe byte conversions via encoding/binary, which modern Go compilers
-// optimize to the same assembly as unsafe pointer casts with zero performance cost.
+// optimise to the same assembly as unsafe pointer casts with zero performance cost.
 
 // setInt32 creates a setter for int32 fields.
 // Bounds checking is done once in NextStruct() before the setter loop.

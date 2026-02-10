@@ -13,7 +13,7 @@ func TestSessionInfoHeader(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		output, err := ReadSessionInfo(f, expectedTelemetryHeader.SessionInfoOffset, expectedTelemetryHeader.SessionInfoLength)
 		if err != nil {
@@ -32,7 +32,7 @@ func TestSessionInfoHeader(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ReadSessionInfo(f, expectedTelemetryHeader.SessionInfoOffset, expectedTelemetryHeader.SessionInfoLength)
 		if err == nil {
@@ -46,7 +46,7 @@ func TestSessionInfoHeader(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ReadSessionInfo(f, expectedTelemetryHeader.SessionInfoOffset, expectedTelemetryHeader.SessionInfoLength)
 		if err == nil {
@@ -692,96 +692,96 @@ var expectedSessionInfo = Session{
 			},
 		},
 	},
-	CarSetup: map[string]interface{}{
-		"Chassis": map[string]interface{}{
-			"Front": map[string]interface{}{
+	CarSetup: map[string]any{
+		"Chassis": map[string]any{
+			"Front": map[string]any{
 				"HeaveRate":  "750 N/mm",
 				"RideHeight": "25.0 mm",
 				"RollRate":   "400 N/mm",
 			},
-			"LeftFront": map[string]interface{}{
+			"LeftFront": map[string]any{
 				"Camber":       "-3.15 deg",
 				"CornerWeight": "1902 N",
 				"ToeIn":        "-0.05 deg",
 			},
-			"LeftRear": map[string]interface{}{
+			"LeftRear": map[string]any{
 				"Camber":       "-1.57 deg",
 				"CornerWeight": "2231 N",
 				"ToeIn":        "+0.05 deg",
 			},
-			"Rear": map[string]interface{}{
+			"Rear": map[string]any{
 				"FuelLevel":  "45 Kg",
 				"HeaveRate":  "180 N/mm",
 				"RideHeight": "60.0 mm",
 				"RollRate":   "300 N/mm",
 			},
-			"RightFront": map[string]interface{}{
+			"RightFront": map[string]any{
 				"Camber":       "-3.15 deg",
 				"CornerWeight": "1902 N",
 				"ToeIn":        "-0.05 deg",
 			},
-			"RightRear": map[string]interface{}{
+			"RightRear": map[string]any{
 				"Camber":       "-1.57 deg",
 				"CornerWeight": "2231 N",
 				"ToeIn":        "+0.05 deg",
 			},
 		},
-		"DriveBrake": map[string]interface{}{
-			"BrakeSystemConfig": map[string]interface{}{
+		"DriveBrake": map[string]any{
+			"BrakeSystemConfig": map[string]any{
 				"BaseBrakeBias":  "52.5% (BBAL)",
 				"BrakeMigration": "6 (BMIG)",
 				"DynamicRamping": "20% pedal",
 				"FineBrakeBias":  "-1.0 (BB+/BB-)",
 				"TotalBrakeBias": "56.5% front",
 			},
-			"Differential": map[string]interface{}{
+			"Differential": map[string]any{
 				"Entry":     "1 (ENTRY)",
 				"HighSpeed": "6 (HISPD)",
 				"Middle":    "4 (MID)",
 				"Preload":   "0 Nm",
 			},
-			"PowerUnitConfig": map[string]interface{}{
+			"PowerUnitConfig": map[string]any{
 				"EngineBraking":  "5 (EB)",
 				"MguKDeployMode": "Balanced",
 			},
 		},
-		"TiresAero": map[string]interface{}{
-			"AeroCalculator": map[string]interface{}{
+		"TiresAero": map[string]any{
+			"AeroCalculator": map[string]any{
 				"AeroBalance":     "48.14%",
 				"DownforceToDrag": "4.501:1",
 				"FrontRhAtSpeed":  "18.0 mm",
 				"RearRhAtSpeed":   "33.0 mm",
 			},
-			"AeroPackage": map[string]interface{}{
+			"AeroPackage": map[string]any{
 				"DownforceTrim":   "High",
 				"FrontFlapOffset": "0.50 deg",
 				"RearWingGurney":  "0 mm",
 			},
-			"LeftFrontTire": map[string]interface{}{
+			"LeftFrontTire": map[string]any{
 				"LastHotPressure":  "24.1 psi",
 				"LastTempsOMI":     "89C, 96C, 101C",
 				"StartingPressure": "165.5 kPa",
 				"TreadRemaining":   "99%, 98%, 98%",
 			},
-			"LeftRearTire": map[string]interface{}{
+			"LeftRearTire": map[string]any{
 				"LastHotPressure":  "21.2 psi",
 				"LastTempsOMI":     "88C, 93C, 95C",
 				"StartingPressure": "144.8 kPa",
 				"TreadRemaining":   "99%, 98%, 98%",
 			},
-			"RightFrontTire": map[string]interface{}{
+			"RightFrontTire": map[string]any{
 				"LastHotPressure":  "23.9 psi",
 				"LastTempsIMO":     "98C, 93C, 86C",
 				"StartingPressure": "165.5 kPa",
 				"TreadRemaining":   "97%, 97%, 98%",
 			},
-			"RightRearTire": map[string]interface{}{
+			"RightRearTire": map[string]any{
 				"LastHotPressure":  "21.0 psi",
 				"LastTempsIMO":     "93C, 90C, 84C",
 				"StartingPressure": "144.8 kPa",
 				"TreadRemaining":   "98%, 98%, 99%",
 			},
-			"TireCompound": map[string]interface{}{
+			"TireCompound": map[string]any{
 				"TireCompound": "Medium",
 			},
 		},
@@ -982,8 +982,8 @@ var expectedSessionInfo = Session{
 				ResultsNumCautionLaps:  0,
 				ResultsNumLeadChanges:  0,
 				ResultsOfficial:        0,
-				ResultsPositions: []interface{}{
-					map[string]interface{}{
+				ResultsPositions: []any{
+					map[string]any{
 						"CarIdx":            0,
 						"ClassPosition":     0,
 						"FastestLap":        4,

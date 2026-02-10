@@ -26,7 +26,7 @@ func newMockReader(reader Reader, bufSize, start, end int) (*mockReader, error) 
 
 	_, err := reader.ReadAt(buf, 0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read into mockReader buf: %v", err)
+		return nil, fmt.Errorf("failed to read into mockReader buf: %w", err)
 	}
 
 	newBuf := buf[:start]

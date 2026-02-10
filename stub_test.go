@@ -10,13 +10,20 @@ import (
 	"github.com/OJPARKINSON/ibt/headers"
 )
 
+const (
+	stubFile2 = "stub_2.ibt"
+	stubFile5 = "stub_5.ibt"
+	stubFile6 = "stub_6.ibt"
+	stubFile8 = "stub_8.ibt"
+)
+
 func TestStubs(t *testing.T) {
-	f, err := NewIbtReader(".testing/valid_test_file.ibt")
+	f, err := NewIbtReader(benchTestFile)
 	if err != nil {
 		t.Errorf("failed to open testing file - %v", err)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	header, err := headers.ParseHeaders(f)
 	if err != nil {
@@ -24,14 +31,14 @@ func TestStubs(t *testing.T) {
 	}
 
 	testStub := Stub{
-		filepath: ".testing/valid_test_file.ibt",
+		filepath: benchTestFile,
 		header:   header,
 	}
 
 	t.Run("stubs Filename()", func(t *testing.T) {
 		filename := testStub.Filename()
 
-		if filename != ".testing/valid_test_file.ibt" {
+		if filename != benchTestFile {
 			t.Errorf("expected filename to be .testing/valid_test_file.ibt but got %s", filename)
 		}
 	})
@@ -61,7 +68,7 @@ func TestStubs(t *testing.T) {
 			SessionInfo:     &headers.Session{DriverInfo: headers.DriverInfo{DriverCarIdx: 15}},
 		}
 
-		driverIdxStub := Stub{filepath: ".testing/valid_test_file.ibt", header: &h}
+		driverIdxStub := Stub{filepath: benchTestFile, header: &h}
 
 		if driverIdxStub.DriverIdx() != 15 {
 			t.Errorf("expected driver idx to be 15, but got %d", driverIdxStub.DriverIdx())
@@ -69,15 +76,15 @@ func TestStubs(t *testing.T) {
 	})
 
 	t.Run("stubs Open() valid file", func(t *testing.T) {
-		stub := Stub{filepath: ".testing/valid_test_file.ibt"}
+		stub := Stub{filepath: benchTestFile}
 
 		if err := stub.Open(); err != nil {
-			t.Errorf("did not expect an error when opening file %s. received: %v", ".testing/valid_test_file.ibt", err)
+			t.Errorf("did not expect an error when opening file %s. received: %v", benchTestFile, err)
 		}
 
 		buf := make([]byte, 2)
 		if _, err := f.Read(buf); err != nil {
-			t.Errorf("did not expect an error when reading 2 bytes from file %s. received: %v", ".testing/valid_test_file.ibt", err)
+			t.Errorf("did not expect an error when reading 2 bytes from file %s. received: %v", benchTestFile, err)
 		}
 
 		if !bytes.Equal(buf, []byte{0x2, 0x0}) {
@@ -96,12 +103,12 @@ func TestStubs(t *testing.T) {
 
 func TestParseStubs(t *testing.T) {
 	t.Run("test parseStub valid file", func(t *testing.T) {
-		parsedStub, err := parseStub(".testing/valid_test_file.ibt")
+		parsedStub, err := parseStub(benchTestFile)
 		if err != nil {
 			t.Errorf("unexpected error received from parseStub(): %v", err)
 		}
 
-		if parsedStub.filepath != ".testing/valid_test_file.ibt" {
+		if parsedStub.filepath != benchTestFile {
 			t.Errorf("expected parsedStub to have a filepath of .testing/valid_test_file.ibt. received: %s", parsedStub.filepath)
 		}
 
@@ -137,7 +144,7 @@ func TestParseStubs(t *testing.T) {
 	})
 
 	t.Run("test ParseStubs() valid file", func(t *testing.T) {
-		parsedStubs, err := ParseStubs(".testing/valid_test_file.ibt", ".testing/valid_test_file.ibt")
+		parsedStubs, err := ParseStubs(benchTestFile, benchTestFile)
 		if err != nil {
 			t.Errorf("unexpected error received from ParseStubs(): %v", err)
 		}
@@ -146,7 +153,7 @@ func TestParseStubs(t *testing.T) {
 			t.Errorf("expected %d stubs to be parsed. found %d. parsed stubs: %v", 2, len(parsedStubs), parsedStubs)
 		}
 
-		if parsedStubs[1].filepath != ".testing/valid_test_file.ibt" {
+		if parsedStubs[1].filepath != benchTestFile {
 			t.Errorf("expected the parsed stub to have a filepath of .testing/valid_test_file.ibt. received: %s", parsedStubs[1].filepath)
 		}
 
@@ -168,7 +175,7 @@ func TestParseStubs(t *testing.T) {
 	})
 
 	t.Run("test ParseStubs() one invalid file", func(t *testing.T) {
-		parsedStubs, err := ParseStubs(".testing/valid_test_file.ibt", ".testing/invalid_test_file.ibt")
+		parsedStubs, err := ParseStubs(benchTestFile, ".testing/invalid_test_file.ibt")
 		if err == nil {
 			t.Error("expected an error from ParseStubs() when reading an invalid file")
 		}
@@ -184,7 +191,7 @@ func TestParseStubs(t *testing.T) {
 }
 
 func TestGroupTestSessionStubs(t *testing.T) {
-	makeHeader := func(subSessionId int, ResultsPositions interface{}, ts int64) *headers.Header {
+	makeHeader := func(subSessionId int, ResultsPositions any, ts int64) *headers.Header {
 		return &headers.Header{
 			DiskHeader: &headers.DiskHeader{StartDate: ts},
 			SessionInfo: &headers.Session{
@@ -204,7 +211,7 @@ func TestGroupTestSessionStubs(t *testing.T) {
 	}
 
 	stub2 := Stub{
-		filepath: "stub_2.ibt",
+		filepath: stubFile2,
 		header:   makeHeader(0, 1, now.Add(-60*time.Minute).Unix()),
 	}
 
@@ -222,8 +229,8 @@ func TestGroupTestSessionStubs(t *testing.T) {
 			t.Errorf("expected length of stub group to be %d. received %d. group: %v", 2, len(grouped), grouped)
 		}
 
-		if grouped[0][1].filepath != "stub_2.ibt" {
-			t.Errorf("expected second item of the first group to have filename %s. received %s", "stub_2.ibt", grouped[0][1].filepath)
+		if grouped[0][1].filepath != stubFile2 {
+			t.Errorf("expected second item of the first group to have filename %s. received %s", stubFile2, grouped[0][1].filepath)
 		}
 
 		if grouped[1][2].filepath != "stub_3.ibt" {
@@ -240,12 +247,12 @@ func TestGroupTestSessionStubs(t *testing.T) {
 			t.Errorf("expected length of stub group to be %d. received %d. group: %v", 2, len(grouped), grouped)
 		}
 
-		if grouped[0][0].filepath != "stub_2.ibt" {
-			t.Errorf("expected first item of the first group to have filename %s. received %s", "stub_2.ibt", grouped[0][0].filepath)
+		if grouped[0][0].filepath != stubFile2 {
+			t.Errorf("expected first item of the first group to have filename %s. received %s", stubFile2, grouped[0][0].filepath)
 		}
 
-		if grouped[1][1].filepath != "stub_2.ibt" {
-			t.Errorf("expected second item of the second group to have filename %s. received %s", "stub_2.ibt", grouped[1][1].filepath)
+		if grouped[1][1].filepath != stubFile2 {
+			t.Errorf("expected second item of the second group to have filename %s. received %s", stubFile2, grouped[1][1].filepath)
 		}
 
 		if grouped[2][0].filepath != "stub_1.ibt" {
@@ -255,7 +262,7 @@ func TestGroupTestSessionStubs(t *testing.T) {
 }
 
 func TestGroup(t *testing.T) {
-	makeHeader := func(subSessionId int, ResultsPositions interface{}, ts int64) *headers.Header {
+	makeHeader := func(subSessionId int, ResultsPositions any, ts int64) *headers.Header {
 		return &headers.Header{
 			DiskHeader: &headers.DiskHeader{StartDate: ts},
 			SessionInfo: &headers.Session{
@@ -277,7 +284,7 @@ func TestGroup(t *testing.T) {
 	}
 
 	stub2 := Stub{
-		filepath: "stub_2.ibt",
+		filepath: stubFile2,
 		header:   makeHeader(1, nil, now.Add(-360*time.Minute).Unix()),
 	}
 
@@ -311,56 +318,38 @@ func TestGroup(t *testing.T) {
 		header:   makeHeader(0, 1, now.Unix()),
 	}
 
-	t.Run("test Group() with regular pattern", func(t *testing.T) {
-		stubs := StubGroup{stub1, stub2, stub3, stub4, stub5, stub6, stub7, stub8}
-
-		grouped := stubs.Group()
+	assertGrouped := func(t *testing.T, grouped []StubGroup) {
+		t.Helper()
 
 		if len(grouped) != 4 {
 			t.Errorf("expected length of stub group to be %d. received %d. group: %v", 4, len(grouped), grouped)
 		}
 
-		if grouped[0][1].filepath != "stub_2.ibt" {
-			t.Errorf("expected second item of the first group to have filename %s. received %s", "stub_2.ibt", grouped[0][1].filepath)
+		if grouped[0][1].filepath != stubFile2 {
+			t.Errorf("expected second item of the first group to have filename %s. received %s", stubFile2, grouped[0][1].filepath)
 		}
 
-		if grouped[1][1].filepath != "stub_5.ibt" {
-			t.Errorf("expected second item of the second group to have filename %s. received %s", "stub_5.ibt", grouped[1][1].filepath)
+		if grouped[1][1].filepath != stubFile5 {
+			t.Errorf("expected second item of the second group to have filename %s. received %s", stubFile5, grouped[1][1].filepath)
 		}
 
-		if grouped[2][0].filepath != "stub_6.ibt" {
-			t.Errorf("expected first item of the third group to have filename %s. received %s", "stub_6.ibt", grouped[2][0].filepath)
+		if grouped[2][0].filepath != stubFile6 {
+			t.Errorf("expected first item of the third group to have filename %s. received %s", stubFile6, grouped[2][0].filepath)
 		}
 
-		if grouped[3][1].filepath != "stub_8.ibt" {
-			t.Errorf("expected first item of the third group to have filename %s. received %s", "stub_8.ibt", grouped[3][1].filepath)
+		if grouped[3][1].filepath != stubFile8 {
+			t.Errorf("expected first item of the third group to have filename %s. received %s", stubFile8, grouped[3][1].filepath)
 		}
+	}
+
+	t.Run("test Group() with regular pattern", func(t *testing.T) {
+		stubs := StubGroup{stub1, stub2, stub3, stub4, stub5, stub6, stub7, stub8}
+		assertGrouped(t, stubs.Group())
 	})
 
 	t.Run("test groupTestSessionStubs() with irregular pattern", func(t *testing.T) {
 		stubs := StubGroup{stub7, stub8, stub1, stub4, stub5, stub2, stub3, stub6}
-
-		grouped := stubs.Group()
-
-		if len(grouped) != 4 {
-			t.Errorf("expected length of stub group to be %d. received %d. group: %v", 4, len(grouped), grouped)
-		}
-
-		if grouped[0][1].filepath != "stub_2.ibt" {
-			t.Errorf("expected second item of the first group to have filename %s. received %s", "stub_2.ibt", grouped[0][1].filepath)
-		}
-
-		if grouped[1][1].filepath != "stub_5.ibt" {
-			t.Errorf("expected second item of the second group to have filename %s. received %s", "stub_5.ibt", grouped[1][1].filepath)
-		}
-
-		if grouped[2][0].filepath != "stub_6.ibt" {
-			t.Errorf("expected first item of the third group to have filename %s. received %s", "stub_6.ibt", grouped[2][0].filepath)
-		}
-
-		if grouped[3][1].filepath != "stub_8.ibt" {
-			t.Errorf("expected first item of the third group to have filename %s. received %s", "stub_8.ibt", grouped[3][1].filepath)
-		}
+		assertGrouped(t, stubs.Group())
 	})
 }
 
@@ -455,12 +444,12 @@ func TestStubGroupClose(t *testing.T) {
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
-		defer f1.Close()
+		defer func() { _ = f1.Close() }()
 		f2, err := NewIbtReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
-		defer f2.Close()
+		defer func() { _ = f2.Close() }()
 
 		stubGroup := StubGroup{
 			Stub{filepath: "5.ibt", r: f1},
@@ -486,12 +475,12 @@ func TestStubGroupClose(t *testing.T) {
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
-		defer f1.Close()
+		defer func() { _ = f1.Close() }()
 		f2, err := NewIbtReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
-		f2.Close()
+		_ = f2.Close()
 
 		stubGroup := StubGroup{
 			Stub{filepath: "5.ibt", r: f1},
@@ -516,12 +505,12 @@ func TestCloseAllStubs(t *testing.T) {
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
-		defer f1.Close()
+		defer func() { _ = f1.Close() }()
 		f2, err := NewIbtReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
-		defer f2.Close()
+		defer func() { _ = f2.Close() }()
 
 		stubGroups := []StubGroup{
 			{
@@ -551,12 +540,12 @@ func TestCloseAllStubs(t *testing.T) {
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
-		defer f1.Close()
+		defer func() { _ = f1.Close() }()
 		f2, err := NewIbtReader(".testing/empty_test_file.ibt")
 		if err != nil {
 			t.Errorf("failed to open test file %v", err)
 		}
-		f2.Close()
+		_ = f2.Close()
 
 		stubGroups := []StubGroup{
 			{

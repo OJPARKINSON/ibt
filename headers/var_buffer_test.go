@@ -36,7 +36,7 @@ func TestReadVarBufferHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		output, err := ReadVarBufferHeaders(f, 3)
 		if err != nil {
@@ -63,7 +63,7 @@ func TestReadVarBufferHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		output, err := ReadVarBufferHeaders(f, expectedTelemetryHeader.NumBuf)
 		if err != nil {
@@ -82,7 +82,7 @@ func TestReadVarBufferHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ReadVarBufferHeaders(f, expectedTelemetryHeader.NumBuf)
 		if err == nil {
@@ -96,7 +96,7 @@ func TestReadVarBufferHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ReadVarBufferHeaders(f, expectedTelemetryHeader.NumBuf)
 		if err == nil {

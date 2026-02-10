@@ -27,7 +27,7 @@ func TestTelemetryHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		output, err := ReadTelemetryHeader(f)
 		if err != nil {
@@ -46,7 +46,7 @@ func TestTelemetryHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ReadTelemetryHeader(f)
 		if err == nil {
@@ -60,7 +60,7 @@ func TestTelemetryHeaders(t *testing.T) {
 			t.Errorf("failed to open testing file - %v", err)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		_, err = ReadTelemetryHeader(f)
 		if err == nil {
