@@ -12,5 +12,5 @@ pre-commit:
             tags: lint
             stage_fixed: true
 
-          - run: make test
+          - run: go test .
             tags: test
