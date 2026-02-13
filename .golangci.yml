@@ -33,7 +33,6 @@ linters:
     - intrange
     - makezero
     - mirror
-    - misspell
     - modernize
     - nestif
     - noctx
@@ -63,8 +62,6 @@ linters:
     goconst:
       ignore-string-values:
         - "false"
-    misspell:
-      locale: UK
     perfsprint:
       strconcat: false
     revive:
