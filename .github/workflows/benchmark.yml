@@ -26,10 +26,10 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Download test data
-      run: |
-        # Add commands to download/generate test .ibt files if needed
-        ls -la .testing/ || echo "Test files may need to be added"
+    # - name: Download test data
+    #   run: |
+    #     # Add commands to download/generate test .ibt files if needed
+    #     ls -la .testing/ || echo "Test files may need to be added"
 
     - name: Run Benchmarks
       run: |
