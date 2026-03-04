@@ -452,8 +452,8 @@ func TestStubGroupClose(t *testing.T) {
 		defer func() { _ = f2.Close() }()
 
 		stubGroup := StubGroup{
-			Stub{filepath: "5.ibt", r: f1},
-			Stub{filepath: "3.ibt", r: f2},
+			Stub{filepath: "5.ibt", reader: f1},
+			Stub{filepath: "3.ibt", reader: f2},
 		}
 
 		err = stubGroup.Close()
@@ -461,11 +461,11 @@ func TestStubGroupClose(t *testing.T) {
 			t.Errorf("expected stub group to close without error. received: %v", err)
 		}
 
-		if err := stubGroup[0].r.Close(); err == nil {
+		if err := stubGroup[0].reader.Close(); err == nil {
 			t.Errorf("expected stub 0 to be closed")
 		}
 
-		if err := stubGroup[1].r.Close(); err == nil {
+		if err := stubGroup[1].reader.Close(); err == nil {
 			t.Errorf("expected stub 0 to be closed")
 		}
 	})
@@ -483,8 +483,8 @@ func TestStubGroupClose(t *testing.T) {
 		_ = f2.Close()
 
 		stubGroup := StubGroup{
-			Stub{filepath: "5.ibt", r: f1},
-			Stub{filepath: ".testing/empty_test_file.ibt", r: f2},
+			Stub{filepath: "5.ibt", reader: f1},
+			Stub{filepath: ".testing/empty_test_file.ibt", reader: f2},
 		}
 
 		err = stubGroup.Close()
@@ -514,10 +514,10 @@ func TestCloseAllStubs(t *testing.T) {
 
 		stubGroups := []StubGroup{
 			{
-				Stub{filepath: "5.ibt", r: f1},
+				Stub{filepath: "5.ibt", reader: f1},
 			},
 			{
-				Stub{filepath: "3.ibt", r: f2},
+				Stub{filepath: "3.ibt", reader: f2},
 			},
 		}
 
@@ -526,11 +526,11 @@ func TestCloseAllStubs(t *testing.T) {
 			t.Errorf("expected stub group to close without error. received: %v", err)
 		}
 
-		if err := stubGroups[0][0].r.Close(); err == nil {
+		if err := stubGroups[0][0].reader.Close(); err == nil {
 			t.Errorf("expected stub 0 to be closed")
 		}
 
-		if err := stubGroups[1][0].r.Close(); err == nil {
+		if err := stubGroups[1][0].reader.Close(); err == nil {
 			t.Errorf("expected stub 0 to be closed")
 		}
 	})
@@ -549,10 +549,10 @@ func TestCloseAllStubs(t *testing.T) {
 
 		stubGroups := []StubGroup{
 			{
-				Stub{filepath: "5.ibt", r: f1},
+				Stub{filepath: "5.ibt", reader: f1},
 			},
 			{
-				Stub{filepath: ".testing/empty_test_file.ibt", r: f2},
+				Stub{filepath: ".testing/empty_test_file.ibt", reader: f2},
 			},
 		}
 

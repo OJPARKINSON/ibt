@@ -61,7 +61,7 @@ func process(ctx context.Context, stub Stub, processors ...Processor) error {
 	whitelist := buildWhitelist(header.VarHeader, processors...)
 
 	// Create struct parser (always uses struct-based parsing)
-	parser := NewStructParser(stub.r, header, whitelist...)
+	parser := NewStructParser(stub.reader, header, whitelist...)
 
 	originalTick := &TelemetryTick{}
 	tickCount := 0

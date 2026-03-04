@@ -70,7 +70,7 @@ func TestProcess(t *testing.T) {
 	}
 
 	stubs := StubGroup{
-		{filepath: ".testing/valid_test_file.ibt", header: testHeaders, r: reader},
+		{filepath: ".testing/valid_test_file.ibt", header: testHeaders, reader: reader},
 	}
 
 	t.Run("test Process() normal processor", func(t *testing.T) {

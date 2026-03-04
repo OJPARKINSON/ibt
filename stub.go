@@ -17,12 +17,12 @@ import (
 type Stub struct {
 	filepath string
 	header   *headers.Header
-	r        *IbtReader
+	reader   *IbtReader
 }
 
 // Open the underlying ibt file for reading.
 func (stub *Stub) Open() (err error) {
-	stub.r, err = NewIbtReader(stub.Filename())
+	stub.reader, err = NewIbtReader(stub.Filename())
 	if err != nil {
 		return fmt.Errorf("failed to open stub file %s for reading: %w", stub.Filename(), err)
 	}
@@ -32,8 +32,8 @@ func (stub *Stub) Open() (err error) {
 
 // Close the stub reader.
 func (stub *Stub) Close() error {
-	if stub.r != nil {
-		if err := stub.r.Close(); err != nil {
+	if stub.reader != nil {
+		if err := stub.reader.Close(); err != nil {
 			return fmt.Errorf("close %s: %w", stub.filepath, err)
 		}
 	}
@@ -105,13 +105,18 @@ func parseStub(filename string) (Stub, error) {
 	var stub Stub
 
 	// Open with os.File for header parsing (requires Read() method)
-	f, err := os.Open(filename)
+	file, err := os.Open(filename)
 	if err != nil {
 		return stub, fmt.Errorf("failed to open file %s for reading: %w", filename, err)
 	}
-	defer func() { _ = f.Close() }()
+	defer func() {
+		err = file.Close()
+		if err != nil {
+			fmt.Printf("threw error opening stub for %s", filename)
+		}
+	}()
 
-	header, err := headers.ParseHeaders(f)
+	header, err := headers.ParseHeaders(file)
 	if err != nil {
 		return stub, fmt.Errorf("failed to parse headers for file %s - %w", filename, err)
 	}

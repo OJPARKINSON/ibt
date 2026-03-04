@@ -8,7 +8,7 @@ pre-commit:
       glob: "*.go"
       group:
         jobs:
-          - run: bin/golangci-lint run --fix
+          - run: go lint .
             tags: lint
             stage_fixed: true
 
