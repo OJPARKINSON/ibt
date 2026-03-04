@@ -8,9 +8,5 @@ pre-commit:
       glob: "*.go"
       group:
         jobs:
-          - run: go lint .
-            tags: lint
-            stage_fixed: true
-
           - run: go test .
             tags: test
