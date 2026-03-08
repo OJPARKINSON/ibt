@@ -13,7 +13,7 @@ type Header struct {
 
 // ParseHeader parses each of the required sub-headers of the ibt file in sequence.
 func ParseHeaders(r Reader) (*Header, error) {
-	telemHeader, err := ReadTelemetryHeader(r)
+	telemetryHeader, err := ReadTelemetryHeader(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse telemetry header: %w", err)
 	}
@@ -23,23 +23,25 @@ func ParseHeaders(r Reader) (*Header, error) {
 		return nil, fmt.Errorf("failed to parse disk header: %w", err)
 	}
 
-	varHeader, err := ReadVarHeader(r, telemHeader.NumVars, telemHeader.VarHeaderOffset)
+	varHeader, err := ReadVarHeader(r, telemetryHeader.NumVars, telemetryHeader.VarHeaderOffset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse variable header: %w", err)
 	}
 
-	varBuffers, err := ReadVarBufferHeaders(r, telemHeader.NumBuf)
+	varBuffers, err := ReadVarBufferHeaders(r, telemetryHeader.NumBuf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse var buffer header: %w", err)
 	}
 
-	sessionInfo, err := ReadSessionInfo(r, telemHeader.SessionInfoOffset, telemHeader.SessionInfoLength)
+	sessionInfo, err := ReadSessionInfo(r, telemetryHeader.SessionInfoOffset, telemetryHeader.SessionInfoLength)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse session info: %w", err)
 	}
 
+	fmt.Printf("bufferHeader,  %#v\n", telemetryHeader)
+
 	return &Header{
-		TelemetryHeader: telemHeader,
+		TelemetryHeader: telemetryHeader,
 		DiskHeader:      diskHeader,
 		VarHeader:       varHeader,
 		SessionInfo:     sessionInfo,

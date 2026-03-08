@@ -25,8 +25,7 @@ type varSetter struct {
 }
 
 // DirectStructParser reads telemetry bytes directly into TelemetryTick structs
-// without intermediate map allocations. This provides approximately 50-60%
-// performance improvement over map-based parsing.
+// without intermediate map allocations. This provides performance improvements over map-based parsing.
 //
 // The parser uses safe byte conversions via encoding/binary, which modern
 // Go compilers optimise to the same assembly as unsafe pointer casts.
