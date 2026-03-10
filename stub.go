@@ -3,6 +3,7 @@ package ibt
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"time"
@@ -112,7 +113,7 @@ func parseStub(filename string) (Stub, error) {
 	defer func() {
 		err = file.Close()
 		if err != nil {
-			fmt.Printf("threw error opening stub for %s", filename)
+			log.Printf("threw error opening stub for %s", filename)
 		}
 	}()
 

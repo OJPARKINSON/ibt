@@ -38,8 +38,6 @@ func ParseHeaders(r Reader) (*Header, error) {
 		return nil, fmt.Errorf("failed to parse session info: %w", err)
 	}
 
-	fmt.Printf("bufferHeader,  %#v\n", telemetryHeader)
-
 	return &Header{
 		TelemetryHeader: telemetryHeader,
 		DiskHeader:      diskHeader,
