@@ -69,6 +69,7 @@ func NewDirectStructParser(reader *IbtReader, header *headers.Header, whitelist 
 		if useWhitelist && !whitelistSet[name] {
 			continue
 		}
+
 		if setter, ok := fieldSetters[name]; ok {
 			setters = append(setters, varSetter{offset: vh.Offset, setter: setter})
 			// Track the highest byte offset needed.
